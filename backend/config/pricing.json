@@ -1,0 +1,117 @@
+{
+  "currency": "USD",
+  "billing": {
+    "annual_discount_percent": 18
+  },
+  "plans": [
+    {
+      "id": "viewer_free",
+      "category": "viewer",
+      "name": "Viewer Free",
+      "price_monthly": 0,
+      "price_annual": 0,
+      "limits": {
+        "ai_asks_per_day": 10,
+        "saved_moments_total": 20,
+        "exports_per_month": 3,
+        "votes_per_day": 30,
+        "sound_actions_per_day": 5,
+        "commands_per_day": 10,
+        "event_history_days": 1
+      },
+      "features": [
+        "Live event feed",
+        "Basic trust panel",
+        "Core viewer actions"
+      ]
+    },
+    {
+      "id": "viewer_plus",
+      "category": "viewer",
+      "name": "Viewer Plus",
+      "price_monthly": 7.99,
+      "price_annual": 79,
+      "limits": {
+        "ai_asks_per_day": 150,
+        "saved_moments_total": 500,
+        "exports_per_month": 40,
+        "votes_per_day": 300,
+        "sound_actions_per_day": 50,
+        "commands_per_day": 200,
+        "event_history_days": 30,
+        "queue_priority_multiplier": 2
+      },
+      "features": [
+        "Priority action queue",
+        "Advanced recap summaries",
+        "Expanded storage and exports"
+      ]
+    },
+    {
+      "id": "streamer_free",
+      "category": "streamer",
+      "name": "Streamer Free",
+      "price_monthly": 0,
+      "price_annual": 0,
+      "limits": {
+        "channels": 1,
+        "live_hours_per_month": 20,
+        "viewer_mau_included": 100,
+        "automation_rules": 5,
+        "clip_exports_per_month": 20,
+        "analytics_retention_days": 7,
+        "moderation_retention_days": 3,
+        "team_seats": 1
+      },
+      "features": [
+        "Core automation",
+        "Basic moderation queue",
+        "Starter analytics"
+      ]
+    },
+    {
+      "id": "streamer_starter",
+      "category": "streamer",
+      "name": "Streamer Starter",
+      "price_monthly": 19,
+      "price_annual": 190,
+      "limits": {
+        "channels": 1,
+        "live_hours_per_month": 120,
+        "viewer_mau_included": 250,
+        "automation_rules": 20,
+        "clip_exports_per_month": 100,
+        "analytics_retention_days": 30,
+        "moderation_retention_days": 14,
+        "team_seats": 1
+      },
+      "features": [
+        "Twitch + YouTube integrations",
+        "Expanded automation",
+        "Monthly export volume"
+      ]
+    },
+    {
+      "id": "streamer_pro",
+      "category": "streamer",
+      "name": "Streamer Pro",
+      "price_monthly": 49,
+      "price_annual": 490,
+      "limits": {
+        "channels": 3,
+        "live_hours_per_month": 400,
+        "viewer_mau_included": 2000,
+        "automation_rules": 200,
+        "clip_exports_per_month": 500,
+        "analytics_retention_days": 365,
+        "moderation_retention_days": 90,
+        "team_seats": 3
+      },
+      "features": [
+        "Priority processing",
+        "Long-term analytics",
+        "Advanced team workflow"
+      ]
+    }
+  ]
+}

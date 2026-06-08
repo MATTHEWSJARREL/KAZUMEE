@@ -1,0 +1,99 @@
+.kazumi-collapse-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px dashed rgba(22, 22, 22, 0.25);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: rgba(250, 245, 239, 0.95);
+  font-size: 12px;
+  line-height: 1.2;
+  color: #3a3129;
+}
+
+.kazumi-collapse-row button {
+  border: 1px solid rgba(22, 22, 22, 0.25);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111111;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 3px 6px;
+}
+
+.kazumi-chat-hidden {
+  display: none !important;
+}
+
+.kazumi-chat-show-hidden {
+  display: block !important;
+  opacity: 0.45;
+  filter: saturate(0.55);
+}
+
+.kazumi-chat-delay-pending {
+  visibility: hidden !important;
+}
+
+.kazumi-overlay {
+  position: fixed;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2147483647;
+  width: min(280px, 92vw);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: #111111;
+}
+
+.kazumi-overlay-head {
+  padding: 8px 10px 6px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.kazumi-overlay-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #57534e;
+}
+
+.kazumi-overlay-body {
+  padding: 8px 10px;
+}
+
+.kazumi-overlay-line {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #1f2937;
+}
+
+.kazumi-overlay-reasons {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.kazumi-overlay-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.kazumi-overlay-actions button {
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+}

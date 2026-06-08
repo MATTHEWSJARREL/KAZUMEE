@@ -1,0 +1,40 @@
+Alembic migration folder for the backend database.
+
+Usage
+-----
+
+1. Ensure the database exists and `backend/.env` contains a valid `DATABASE_URL`.
+
+2. From the repository root (using the repo virtualenv):
+
+	 - Create an autogenerate migration:
+		 ```bash
+		 "C:/Users/ADMIN/Desktop/kazumi 1/.venv/Scripts/python.exe" -m alembic revision --autogenerate -m "describe change"
+		 ```
+
+	 - Apply latest migrations:
+		 ```bash
+		 "C:/Users/ADMIN/Desktop/kazumi 1/.venv/Scripts/python.exe" -m alembic upgrade head
+		 ```
+
+	 - Roll back one migration:
+		 ```bash
+		 "C:/Users/ADMIN/Desktop/kazumi 1/.venv/Scripts/python.exe" -m alembic downgrade -1
+		 ```
+
+Notes
+-----
+
+- Alembic is configured to load `backend/.env` and use `backend.database.session.Base.metadata` for autogeneration.
+- If you prefer, set `sqlalchemy.url` in the top-level `alembic.ini` instead of `backend/.env`.
+- Migrations are stored in `backend/alembic/versions`.
+- Creating the initial database and user must be done once manually (e.g. via `psql` or pgAdmin):
+	```sql
+	CREATE DATABASE kazumi_db;
+	CREATE USER kazumi_user WITH PASSWORD 'strongpassword';
+	GRANT ALL PRIVILEGES ON DATABASE kazumi_db TO kazumi_user;
+	```
+
+Support
+-------
+If autogeneration doesn't detect a change, write the migration by hand in `backend/alembic/versions`.

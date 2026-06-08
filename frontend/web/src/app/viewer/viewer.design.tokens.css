@@ -1,0 +1,58 @@
+:root{
+  /* Background */
+  --kazumi-bg-void:#0B1020;
+  --kazumi-bg-surface:#111827;
+
+  /* Panels/Cards */
+  --kazumi-card-bg:rgba(255,255,255,0.05);
+  --kazumi-card-border:rgba(255,255,255,0.12);
+  --kazumi-card-glass:rgba(17,24,39,0.55);
+
+  /* Accents */
+  --kazumi-primary:#7C3AED;
+  --kazumi-secondary:#8B5CF6;
+
+  /* Status */
+  --kazumi-success:#22C55E;
+  --kazumi-warning:#F59E0B;
+  --kazumi-danger:#EF4444;
+
+  /* Text */
+  --kazumi-text:#FFFFFF;
+  --kazumi-text-muted:#9CA3AF;
+
+  /* Radii */
+  --kazumi-radius-sm:10px;
+  --kazumi-radius-md:14px;
+  --kazumi-radius-lg:18px;
+
+  /* Spacing scale */
+  --kazumi-gap-1:6px;
+  --kazumi-gap-2:10px;
+  --kazumi-gap-3:14px;
+  --kazumi-gap-4:18px;
+  --kazumi-gap-5:22px;
+  --kazumi-gap-6:28px;
+
+  /* Typography */
+  --kazumi-font-sans:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --kazumi-font-display:"Syne","DM Sans",sans-serif;
+
+  --kazumi-text-xs:11px;
+  --kazumi-text-sm:12px;
+  --kazumi-text-md:13px;
+  --kazumi-text-lg:15px;
+  --kazumi-text-xl:18px;
+  --kazumi-text-2xl:24px;
+
+  /* Shadows */
+  --kazumi-shadow-sm:0 10px 30px rgba(0,0,0,0.25);
+  --kazumi-shadow-md:0 22px 42px rgba(0,0,0,0.35);
+}
+
+/* Viewer dark mode host hook */
+.kazumi-dark{
+  --kazumi-bg-void:#08070F;
+  --kazumi-bg-surface:#131120;
+}
+

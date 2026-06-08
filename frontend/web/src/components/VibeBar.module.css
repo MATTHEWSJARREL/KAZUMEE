@@ -1,0 +1,158 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(23, 20, 42, 0.6), rgba(30, 26, 48, 0.6));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(107, 79, 200, 0.15);
+  border-radius: 12px;
+  margin: 16px;
+}
+
+.vibeWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barBackground {
+  position: relative;
+  height: 8px;
+  background: rgba(122, 112, 149, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(107, 79, 200, 0.2);
+}
+
+.gradientTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 76, 106, 0.2) 0%,
+    rgba(245, 166, 35, 0.2) 25%,
+    rgba(0, 229, 160, 0.2) 75%,
+    rgba(0, 212, 255, 0.2) 100%
+  );
+  pointer-events: none;
+}
+
+.barFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              background-color 0.4s ease;
+  /* Shadow color set inline by VibeBar component via boxShadow prop */
+}
+
+.marker {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 2;
+}
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  color: #7A7095;
+  padding: 0 2px;
+}
+
+.minLabel,
+.maxLabel {
+  font-weight: 500;
+}
+
+.sentimentBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(107, 79, 200, 0.1);
+  border: 1px solid;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.sentimentBadge:hover {
+  background: rgba(107, 79, 200, 0.15);
+}
+
+.sentimentDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: all 0.4s ease;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.sentimentText {
+  font-family: "Syne", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #F2EEF8;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    margin: 12px;
+    gap: 12px;
+  }
+
+  .barBackground {
+    height: 6px;
+  }
+
+  .marker {
+    width: 12px;
+    height: 12px;
+  }
+
+  .labels {
+    font-size: 10px;
+  }
+
+  .sentimentBadge {
+    padding: 8px 12px;
+  }
+
+  .sentimentText {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    flex-direction: column;
+    margin: 12px;
+  }
+
+  .sentimentBadge {
+    width: 100%;
+    justify-content: center;
+  }
+}

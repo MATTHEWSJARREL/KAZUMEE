@@ -1,0 +1,65 @@
+# dependencies (bun install)
+node_modules
+venv/
+venv311/
+.venv/
+
+# output
+out
+dist
+*.tgz
+tmp/
+*.tmp
+*.log
+
+# code coverage
+coverage
+*.lcov
+.pytest_cache/
+htmlcov/
+
+# logs
+logs
+_.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# IntelliJ based IDEs
+.idea
+.vscode/
+
+# Finder (MacOS) folder config
+.DS_Store
+
+e2b.local.toml
+e2b.*.local.toml
+
+**/.react-router
+frontend/mobile/caches/*
+frontend/web/playwright-report/
+frontend/web/test-results/
+frontend/web/.vite/
+
+# Local runtime artifacts
+backend/uvicorn.out.log
+backend/uvicorn.err.log
+backend/wake_signal.tmp
+.tmp_test_auth.json
+health_output.json
+click-*.dist-info/

@@ -1,0 +1,15 @@
+title = "Kazumi Secret Scanning Rules"
+
+[[allowlists]]
+description = "Allow known local/dev placeholders used in docs and local setup files."
+regexes = [
+  '''(?i)kazumi123''',
+  '''(?i)postgresql://postgres:[^@]+@localhost:5432/kazumi_db''',
+  '''(?i)streamer\.\d+@example\.com''',
+]
+paths = [
+  '''^docs/''',
+  '''^README\.md$''',
+  '''^VIEWER_SOLO_ACCEPTANCE\.md$''',
+  '''^backend/config/''',
+]
