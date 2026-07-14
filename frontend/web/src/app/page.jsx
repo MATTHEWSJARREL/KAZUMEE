@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { getAuthToken, apiFetch } from "@/lib/apiClient";
 import LandingPage from "../components/landing/LandingPage";
+import "./streamer.css";
 
 // Placeholder for dashboard (imported below after wrapper)
 let DashboardComponent = null;
@@ -1079,35 +1080,37 @@ function KazumiDashboard() {
 
   return (
     <>
-    <div className="flex flex-col md:flex-row min-h-screen text-[var(--text)]">
+    <div className={`streamer-dashboard ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {/* LEFT SIDEBAR */}
-      <div className={`${sidebarCollapsed ? "w-20" : "w-full md:w-72"} transition-all duration-300 border-r border-white/10 p-6 flex flex-col bg-[rgba(23,20,42,0.88)] backdrop-blur-xl`}>
-        {/* Header with Collapse Button */}
-        <div className="flex items-center justify-between mb-8">
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? "opacity-0 w-0" : "opacity-100"} transition-opacity`}>
-            <div className="w-8 h-8 bg-black rounded-md flex items-center justify-center">
-              <Bot className="w-4 h-4 text-white" strokeWidth={1.5} />
+      <div className="streamer-sidebar">
+        {/* Header with Logo and Collapse Button */}
+        <div className="streamer-sidebar-header">
+          <div className="streamer-brand">
+            <img src="/logo.png" alt="Kazumi" className="streamer-brand-logo" />
+            <div className="streamer-brand-text">
+              <h1>Kazumi</h1>
+              <p>Streamer Tools</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+            className="streamer-collapse-btn"
             title={sidebarCollapsed ? "Expand" : "Collapse"}
           >
             {sidebarCollapsed ? "☰" : "✕"}
           </button>
         </div>
 
-        {/* Streamer Name / Role Display */}
-        {!sidebarCollapsed && (
-          <div className="mb-6 p-3 bg-black/30 rounded-xl border border-white/10">
-            <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Mode</div>
-            <div className="text-sm font-semibold text-white">
-              {settings?.profile?.displayName || "Streamer"}
-            </div>
-            <div className="text-xs text-gray-500 capitalize mt-1">{userRole}</div>
+        {/* Profile Section */}
+        <div className={`streamer-profile-section ${sidebarCollapsed ? "collapsed" : ""}`}>
+          <div className="streamer-profile-avatar">
+            {(settings?.profile?.displayName || "Streamer").charAt(0).toUpperCase()}
           </div>
-        )}
+          <div className="streamer-profile-info">
+            <h3>{settings?.profile?.displayName || "Streamer"}</h3>
+            <p className="capitalize">{userRole}</p>
+          </div>
+        </div>
 
 
 
