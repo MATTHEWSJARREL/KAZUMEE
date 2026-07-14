@@ -1472,31 +1472,6 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-
-          {/* Dev Tools */}
-          <div className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
-            <div className="flex items-center gap-3 mb-4">
-              <Server className="w-5 h-5 text-gray-500" />
-              <h2 className="text-lg font-bold">Dev Tools</h2>
-            </div>
-            <label className="flex items-center justify-between text-sm">
-              <span className="font-medium">Bypass Auth (local only)</span>
-              <input
-                type="checkbox"
-                checked={devBypass}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setDevBypass(next);
-                  setAuthBypassEnabled(next);
-                  window.location.reload();
-                }}
-              />
-            </label>
-            <p className="text-xs text-gray-500 mt-2">
-              Enables Demo Mode for UI testing without sign-in.
-            </p>
-          </div>
-
         </div>
       </div>
     </div>

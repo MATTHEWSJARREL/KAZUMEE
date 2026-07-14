@@ -78,6 +78,16 @@ export default function ClipsLibraryPage() {
 
   const formatDuration = (start, end) => `${Math.abs(end - start)}s`;
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "No date";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    } catch {
+      return "No date";
+    }
+  };
+
   const filteredClips = clips.filter((clip) => {
     if (searchQuery && !isAiSearching) {
       return (
@@ -184,7 +194,8 @@ export default function ClipsLibraryPage() {
 
             {/* Meta */}
             <div className="p-4 flex flex-col flex-1">
-              <h3 className="font-bold text-lg mb-2 group-hover:text-purple-300 transition-colors truncate">{clip.title}</h3>
+              <h3 className="font-bold text-lg mb-1 group-hover:text-purple-300 transition-colors truncate">{clip.title}</h3>
+              <p className="text-xs text-gray-500 mb-3">{formatDate(clip.created_at)}</p>
               <div className="flex items-center gap-4 text-gray-400 text-sm mb-4 flex-1">
                 <span className="flex items-center gap-1 font-medium"><Eye className="w-4 h-4" /> {clip.view_count || 0}</span>
                 <span className="flex items-center gap-1 font-medium"><Tag className="w-4 h-4" /> {Math.round((clip.performance_score || 0.5) * 100)}% Heat</span>
