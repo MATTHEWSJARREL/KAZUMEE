@@ -200,6 +200,7 @@ function KazumiDashboard() {
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [clipNowBusy, setClipNowBusy] = useState(false);
   const [clipPulse, setClipPulse] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [postStreamReport, setPostStreamReport] = useState(null);
   const [postStreamGenerating, setPostStreamGenerating] = useState(false);
   const [obsSources, setObsSources] = useState([]);
@@ -1082,38 +1083,37 @@ function KazumiDashboard() {
     <>
     <div className="flex flex-col md:flex-row min-h-screen text-[var(--text)]">
       {/* LEFT SIDEBAR */}
-      <div className="w-full md:w-72 border-r border-white/10 p-6 flex flex-col bg-[rgba(23,20,42,0.88)] backdrop-blur-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-black rounded-md flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" strokeWidth={1.5} />
+      <div className={`${sidebarCollapsed ? "w-20" : "w-full md:w-72"} transition-all duration-300 border-r border-white/10 p-6 flex flex-col bg-[rgba(23,20,42,0.88)] backdrop-blur-xl`}>
+        {/* Header with Collapse Button */}
+        <div className="flex items-center justify-between mb-8">
+          <div className={`flex items-center gap-3 ${sidebarCollapsed ? "opacity-0 w-0" : "opacity-100"} transition-opacity`}>
+            <div className="w-8 h-8 bg-black rounded-md flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" strokeWidth={1.5} />
+            </div>
           </div>
-          <span className="text-lg font-semibold tracking-tight">Kazumi AI</span>
-        </div>
-
-        <div className="mb-6 p-1 bg-black/5 rounded-xl flex">
           <button
-            onClick={() => setMode("streamer")}
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-              mode === "streamer" ? "bg-black text-white" : "text-gray-600 hover:text-black"
-            }`}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+            title={sidebarCollapsed ? "Expand" : "Collapse"}
           >
-            Streamer
+            {sidebarCollapsed ? "☰" : "✕"}
           </button>
-          {userRole === "viewer" && (
-            <button
-              onClick={() => (window.location.href = "/viewer")}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                mode === "viewer" ? "bg-black text-white" : "text-gray-600 hover:text-black"
-              }`}
-            >
-              Viewer
-            </button>
-          )}
         </div>
 
+        {/* Streamer Name / Role Display */}
+        {!sidebarCollapsed && (
+          <div className="mb-6 p-3 bg-black/30 rounded-xl border border-white/10">
+            <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Mode</div>
+            <div className="text-sm font-semibold text-white">
+              {settings?.profile?.displayName || "Streamer"}
+            </div>
+            <div className="text-xs text-gray-500 capitalize mt-1">{userRole}</div>
+          </div>
+        )}
 
 
-        {userRole === "streamer" && (
+
+        {!sidebarCollapsed && userRole === "streamer" && (
           <div className="mb-4">
             <label className="sr-only" htmlFor="tool-search">Search tools</label>
             <div className="relative">
@@ -1129,21 +1129,22 @@ function KazumiDashboard() {
           </div>
         )}
 
-        <nav className="space-y-2 flex-1">
+        <nav className={`space-y-2 flex-1 ${sidebarCollapsed ? "flex flex-col items-center" : ""}`}>
           {filteredNavItems.map((item, index) => {
             const IconComponent = item.icon;
             return (
               <a
                 key={index}
                 href={item.href}
+                title={sidebarCollapsed ? item.name : ""}
 	                className={`flex items-center gap-3 px-3 py-2 rounded-xl w-full text-left text-sm transition-colors ${
 	                  item.active
 	                    ? "bg-black text-white shadow-sm"
 	                    : "text-gray-700 hover:bg-white/10"
-	                }`}
+	                } ${sidebarCollapsed ? "justify-center" : ""}`}
               >
                 <IconComponent className="w-[18px] h-[18px]" strokeWidth={1.5} />
-                <span>{item.name}</span>
+                {!sidebarCollapsed && <span>{item.name}</span>}
               </a>
 	            );
 	          })}
@@ -1152,7 +1153,7 @@ function KazumiDashboard() {
           )}
         </nav>
 
-        {userRole === "viewer" && streamers.length > 0 && (
+        {!sidebarCollapsed && userRole === "viewer" && streamers.length > 0 && (
           <div className="mt-4 rounded-2xl border border-black/5 bg-white/80 p-3">
             <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">
               Watching
@@ -1180,6 +1181,8 @@ function KazumiDashboard() {
           </div>
         )}
 
+        {!sidebarCollapsed && (
+          <>
         {/* AI Status Card */}
         <div className="kazumi-card flex items-center gap-3 p-4 mt-8">
           <Zap className={`w-5 h-5 ${dashboardData?.aiActive ? 'text-green-400' : 'text-gray-300'}`} fill="currentColor" />
@@ -1219,6 +1222,8 @@ function KazumiDashboard() {
             {authUser ? "Account" : "Sign In"}
           </a>
         </div>
+          </>
+        )}
       </div>
 
       {/* MAIN CONTENT */}
