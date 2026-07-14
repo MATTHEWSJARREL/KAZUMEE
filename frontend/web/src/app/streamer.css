@@ -49,7 +49,7 @@
 .streamer-sidebar {
   grid-column: 1;
   grid-row: 1 / span 2;
-  background: rgba(15, 17, 23, 0.95);
+  background: linear-gradient(180deg, rgba(10, 13, 20, 0.98) 0%, rgba(15, 17, 23, 0.95) 100%);
   backdrop-filter: blur(30px);
   border-right: 1px solid var(--streamer-border);
   padding: 0;
@@ -61,6 +61,7 @@
   top: 0;
   height: 100vh;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
 }
 
 .streamer-sidebar::-webkit-scrollbar {
@@ -121,12 +122,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--streamer-text-primary);
 }
 
 .streamer-brand-text p {
-  font-size: 12px;
-  color: var(--streamer-text-muted);
+  font-size: 11px;
+  color: var(--streamer-text-secondary);
   margin: 2px 0 0 0;
+  font-weight: 500;
 }
 
 .streamer-sidebar.collapsed .streamer-brand-text {
@@ -194,12 +197,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--streamer-text-primary);
 }
 
 .streamer-profile-info p {
   font-size: 12px;
-  color: var(--streamer-text-muted);
+  color: var(--streamer-text-secondary);
   margin: 2px 0 0 0;
+  font-weight: 500;
 }
 
 .streamer-sidebar.collapsed .streamer-profile-info {
@@ -237,16 +242,17 @@
 
 .streamer-nav a:hover,
 .streamer-nav button:hover {
-  background: var(--streamer-bg-card-hover);
+  background: rgba(124, 58, 237, 0.08);
   color: var(--streamer-text-primary);
   border-left-color: var(--streamer-accent);
 }
 
 .streamer-nav a.active,
 .streamer-nav button.active {
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(124, 58, 237, 0.15);
   color: var(--streamer-accent-light);
   border-left-color: var(--streamer-accent);
+  font-weight: 600;
 }
 
 .streamer-nav svg {

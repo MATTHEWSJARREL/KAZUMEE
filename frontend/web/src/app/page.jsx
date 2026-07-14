@@ -1115,16 +1115,17 @@ function KazumiDashboard() {
 
 
         {!sidebarCollapsed && userRole === "streamer" && (
-          <div className="mb-4">
+          <div style={{padding: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)"}}>
             <label className="sr-only" htmlFor="tool-search">Search tools</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{color: "rgba(255, 255, 255, 0.45)"}} />
               <input
                 id="tool-search"
                 value={toolSearch}
                 onChange={(e) => setToolSearch(e.target.value)}
                 placeholder="Search tools..."
-                className="w-full h-10 pl-9 pr-3 rounded-lg border border-white/10 bg-white/5 text-sm text-[var(--text)] placeholder:text-gray-500 focus:border-white/30"
+                className="streamer-input"
+                style={{paddingLeft: "36px", fontSize: "13px"}}
               />
             </div>
           </div>
@@ -1228,9 +1229,9 @@ function KazumiDashboard() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="streamer-main">
         {/* HEADER WITH LOGO & STREAMER INFO */}
-        <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8">
+        <div style={{borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "linear-gradient(180deg, rgba(15,17,23,0.5) 0%, rgba(10,13,20,0.8) 100%)", padding: "24px", marginBottom: "24px", borderRadius: "12px"}}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <KazumiAvatarPremium
