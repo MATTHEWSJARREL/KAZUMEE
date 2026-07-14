@@ -8,7 +8,7 @@ export default function KazumeeChatDrawer() {
     { id: 1, type: "kazumee", text: "Hey! 👋 I'm Kazumee, your AI streaming assistant. What do you need help with today?" }
   ]);
   const [input, setInput] = useState("");
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -60,9 +60,8 @@ export default function KazumeeChatDrawer() {
           position: "fixed",
           right: "20px",
           bottom: "20px",
-          width: "56px",
-          height: "56px",
-          borderRadius: "50%",
+          padding: "12px 24px",
+          borderRadius: "25px",
           background: "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
           border: "none",
           color: "white",
@@ -70,15 +69,20 @@ export default function KazumeeChatDrawer() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          gap: "8px",
+          fontSize: "14px",
+          fontWeight: "600",
           boxShadow: "0 8px 24px rgba(124, 58, 237, 0.3)",
           zIndex: 40,
-          transition: "all 0.2s"
+          transition: "all 0.2s",
+          fontFamily: "inherit"
         }}
-        onMouseEnter={(e) => e.target.style.transform = "scale(1.1)"}
-        onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
-        title="Chat with Kazumee"
+        onMouseEnter={(e) => e.target.style.transform = "translateY(-2px)"}
+        onMouseLeave={(e) => e.target.style.transform = "translateY(0)"}
+        title="Ask Kazumee for help"
       >
-        <MessageCircle size={24} />
+        <MessageCircle size={20} />
+        Ask Kazumi
       </button>
     );
   }
