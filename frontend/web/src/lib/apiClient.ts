@@ -218,9 +218,9 @@ export async function apiFetch(
   const hasExternalSignal = Boolean(options.signal);
   const shouldApplyTimeout = !hasExternalSignal && method !== "OPTIONS";
   const controller = shouldApplyTimeout ? new AbortController() : null;
-  const timeoutMs = isAuthBootstrapPath ? 30000 : 20000;
+  const timeoutMs = isAuthBootstrapPath ? 30000 : 45000;
   const timeoutId = controller
-    ? setTimeout(() => controller.abort(), timeoutMs)
+    ? setTimeout(() => controller.abort(`${method} ${path} timeout after ${timeoutMs}ms`), timeoutMs)
     : null;
 
   const shouldCacheStreamToken = path === "/auth/stream-token" && method === "POST";

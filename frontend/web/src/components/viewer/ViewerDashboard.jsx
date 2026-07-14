@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { apiFetch, buildApiUrl, getActiveStreamerId, getAuthToken, isAuthBypassEnabled, setActiveStreamerId as setActiveStreamerStorage } from "@/lib/apiClient";
 import { useLatencyShield } from "@/hooks/useLatencyShield";
+import ViewerSettingsModal from "./ViewerSettingsModal";
 import "../../app/viewer.css";
 import {
   Play,
@@ -153,6 +154,7 @@ export default function ViewerModePage() {
   const [liveEvents, setLiveEvents] = useState([]);
   const [eventStreamStatus, setEventStreamStatus] = useState("idle");
   const [eventPaused, setEventPaused] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [eventPlatformFilter, setEventPlatformFilter] = useState("all");
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
   const [vibeStrictness, setVibeStrictness] = useState("off");
@@ -214,6 +216,15 @@ export default function ViewerModePage() {
     } catch {
       // ignore storage failures
     }
+  };
+
+  const handleSettingsChange = (key, value) => {
+    setViewerSettings((prev) => {
+      const updated = { ...prev, [key]: value };
+      localStorage.setItem(VIEWER_SETTINGS_STORAGE_KEY, JSON.stringify(updated));
+      if (key === "theme") applyViewerTheme(value);
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -545,7 +556,7 @@ export default function ViewerModePage() {
           }
         };
       } catch (error) {
-        console.error("Failed to initialize stream token:", error);
+        if (error?.name !== "AbortError") console.error("Failed to initialize stream token:", error);
         scheduleReconnect();
       }
     };
@@ -924,7 +935,7 @@ export default function ViewerModePage() {
       setActiveStreamerIdState(selected);
       if (selected) setActiveStreamerStorage(selected);
     } catch (error) {
-      console.error("Error fetching viewer context:", error);
+      if (error?.name !== "AbortError") console.error("Error fetching viewer context:", error);
     }
   };
 
@@ -959,10 +970,12 @@ export default function ViewerModePage() {
       );
       setStreamerDiagnostics(null);
     } catch (error) {
-      console.error("Error fetching streamers:", error);
-      setStreamerDiagnostics({
-        message: "Streamer discovery failed. Check backend connectivity and try again.",
-      });
+      if (error?.name !== "AbortError") {
+        console.error("Error fetching streamers:", error);
+        setStreamerDiagnostics({
+          message: "Streamer discovery failed. Check backend connectivity and try again.",
+        });
+      }
     } finally {
       setStreamerLoading(false);
     }
@@ -980,7 +993,7 @@ export default function ViewerModePage() {
         setActiveStreamerStorage(selected);
       }
     } catch (error) {
-      console.error("Error fetching viewer data:", error);
+      if (error?.name !== "AbortError") console.error("Error fetching viewer data:", error);
     } finally {
       setLoading(false);
     }
@@ -993,7 +1006,7 @@ export default function ViewerModePage() {
       const data = await res.json();
       setViewerCredits(data.credits || 0);
     } catch (error) {
-      console.error("Error fetching viewer credits:", error);
+      if (error?.name !== "AbortError") console.error("Error fetching viewer credits:", error);
     }
   };
 
@@ -1364,14 +1377,16 @@ export default function ViewerModePage() {
 
         <nav className="viewer-side-nav" aria-label="Viewer navigation">
           <a href="/viewer">Home</a>
-          <a href="/clips">Clip Library</a>
-          <a href="/viewer/settings" onClick={(e) => {
+          <a href="#clips" onClick={(e) => {
             e.preventDefault();
-            // Show viewer preferences modal instead of navigating away
-            const settingsBtn = document.querySelector('[data-viewer-settings-trigger]');
-            if (settingsBtn) settingsBtn.click();
+            const clipsSection = document.querySelector('[data-clips-section]');
+            if (clipsSection) clipsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}>Clip Library</a>
+          <a href="#settings" onClick={(e) => {
+            e.preventDefault();
+            setSettingsModalOpen(true);
           }}>Settings</a>
-          <a href="#viewer-ask-zumi">Comments</a>
+          <a href="#comments">Comments</a>
         </nav>
 
         <section className="viewer-glass-card viewer-vote-card">
@@ -1803,6 +1818,13 @@ export default function ViewerModePage() {
           </div>
         </div>
       )}
+
+      <ViewerSettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        settings={viewerSettings}
+        onSettingsChange={handleSettingsChange}
+      />
     </div>
   );
 }
