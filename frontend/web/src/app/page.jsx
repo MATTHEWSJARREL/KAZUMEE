@@ -1222,8 +1222,60 @@ function KazumiDashboard() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 p-6 md:p-10 overflow-y-auto">
-        <div className="text-sm text-gray-500 mb-1">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* HEADER WITH LOGO & STREAMER INFO */}
+        <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <img
+                src="/logo.png"
+                alt="Kazumi"
+                className="w-12 h-12 md:w-14 md:h-14 rounded-lg object-contain bg-white/5 p-2"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-white">Kazumi AI</h1>
+                <p className="text-sm text-gray-400">Stream Director & Command Center</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-semibold text-white">{authUser?.email || "Streamer"}</p>
+              <p className="text-xs text-gray-500 capitalize">{userRole || "guest"}</p>
+            </div>
+          </div>
+
+          {/* OBS STATUS BAR */}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-300">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              OBS Connected
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+              {dashboardData?.streaming ? "🔴 Streaming" : "Streaming Off"}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+              {dashboardData?.recording ? "🔴 Recording" : "Recording Off"}
+            </div>
+            {dashboardData?.currentScene && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+                Scene: <span className="font-semibold text-white">{dashboardData.currentScene}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* SCROLLABLE CONTENT */}
+        <div className="flex-1 p-6 md:p-10 overflow-y-auto">
+        <div className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+          <button
+            onClick={() => window.history.back()}
+            className="p-1 hover:bg-white/5 rounded-lg transition-colors"
+            title="Go back"
+          >
+            ←
+          </button>
           <span>Pages</span>
           <span className="mx-1.5 text-gray-300">/</span>
           <span>Main Dashboard</span>
@@ -1231,9 +1283,9 @@ function KazumiDashboard() {
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl md:text-4xl font-bold leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold leading-tight">
               Main Dashboard
-            </h1>
+            </h2>
             {isAuthBypassEnabled() && (
               <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-yellow-100 text-yellow-700">
                 Demo Mode

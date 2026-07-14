@@ -493,7 +493,14 @@ export default function SettingsPage() {
       {/* Breadcrumb */}
       <div className="text-sm text-[#6B6480] mb-1 flex items-center justify-between">
 
-        <div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.history.back()}
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+            title="Go back"
+          >
+            ←
+          </button>
           <a href="/dashboard" className="hover:text-black">Dashboard</a>
           <span className="mx-1.5 text-gray-300">/</span>
           <span>Settings</span>
