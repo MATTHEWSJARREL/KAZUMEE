@@ -769,8 +769,8 @@ export default function ViewerModePage() {
       }
       return true;
     } catch (error) {
-      console.error("Highlight reel error:", error);
-      if (!silent) pushFeedback("denied", "Could not load highlights.", "network error");
+      if (error?.name !== "AbortError") console.error("Highlight reel error:", error);
+      if (!silent && error?.name !== "AbortError") pushFeedback("info", "Highlights unavailable for this streamer.", "network error");
       return false;
     }
   };
@@ -829,12 +829,16 @@ export default function ViewerModePage() {
       await fetchCatchupHighlights({ openModal: false, silent: true });
       pushFeedback("approved", "Recap ready.", "catchup recap");
     } catch (error) {
+      if (error?.name === "AbortError") {
+        // Request was cancelled/timed out, don't show error to user
+        return;
+      }
       console.error("Catchup recap error:", error);
       // Handle CORS and network errors gracefully
       if (error.message.includes("CORS")) {
         pushFeedback("info", "Can't reach streamer data right now.", "network error");
       } else {
-        pushFeedback("denied", "Recap unavailable.", "network error");
+        pushFeedback("info", "Recap unavailable for this streamer. They may not be using Kazumi yet.", "network error");
       }
     } finally {
       setCatchupLoading(false);
