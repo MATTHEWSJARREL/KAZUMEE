@@ -786,14 +786,31 @@ export default function ViewerModePage() {
   const runCatchupRecap = async (mode = "quick") => {
     try {
       setCatchupLoading(true);
-      const res = await apiFetch(
-        `/api/viewer/catchup/recap?mode=${mode}&streamer_id=${activeStreamerId}`
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        pushFeedback("denied", formatApiError(data, "Recap failed."), "catchup recap");
+      if (!activeStreamerId) {
+        pushFeedback("denied", "No streamer selected.", "catchup recap");
         return;
       }
+      const res = await apiFetch(
+        `/api/viewer/catchup/recap?mode=${mode}&streamer_id=${activeStreamerId}`,
+        { method: "GET" }
+      );
+      const data = await res.json().catch(() => ({}));
+
+      // Handle no stream data gracefully
+      if (res.status === 404 || (data && data.detail && data.detail.includes("no stream"))) {
+        pushFeedback("info", "This streamer hasn't streamed yet or has no recent activity.", "catchup recap");
+        return;
+      }
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          pushFeedback("denied", "Access denied. Try selecting a different streamer.", "catchup recap");
+        } else {
+          pushFeedback("denied", formatApiError(data, "Recap failed."), "catchup recap");
+        }
+        return;
+      }
+
       setCatchupRecap(data);
       setHasUsedCatchUp(true);
       setCatchUpNudgeDismissed(true);
@@ -802,7 +819,12 @@ export default function ViewerModePage() {
       pushFeedback("approved", "Recap ready.", "catchup recap");
     } catch (error) {
       console.error("Catchup recap error:", error);
-      pushFeedback("denied", "Recap failed.", "network error");
+      // Handle CORS and network errors gracefully
+      if (error.message.includes("CORS")) {
+        pushFeedback("info", "Can't reach streamer data right now.", "network error");
+      } else {
+        pushFeedback("denied", "Recap unavailable.", "network error");
+      }
     } finally {
       setCatchupLoading(false);
     }
@@ -1343,7 +1365,12 @@ export default function ViewerModePage() {
         <nav className="viewer-side-nav" aria-label="Viewer navigation">
           <a href="/viewer">Home</a>
           <a href="/clips">Clip Library</a>
-          <a href="/settings">Settings</a>
+          <a href="/viewer/settings" onClick={(e) => {
+            e.preventDefault();
+            // Show viewer preferences modal instead of navigating away
+            const settingsBtn = document.querySelector('[data-viewer-settings-trigger]');
+            if (settingsBtn) settingsBtn.click();
+          }}>Settings</a>
           <a href="#viewer-ask-zumi">Comments</a>
         </nav>
 
