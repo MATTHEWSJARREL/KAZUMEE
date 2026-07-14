@@ -133,11 +133,18 @@ function RoleGuard() {
     const isPublicPath = publicPaths.some(p => path === p || path.startsWith(p + '/'));
 
     if (isPublicPath) {
-      // For /auth and /onboarding: if user is already authenticated, redirect them away
+      // For /auth: if user is already authenticated, redirect them away
+      // For /onboarding: only redirect if onboarding is COMPLETE
       if ((path.startsWith('/auth') || path.startsWith('/onboarding')) && (getAuthToken() || isAuthBypassEnabled())) {
         const redirectTo = async () => {
           const { status, user } = await checkSession();
           if (status !== 'authenticated' || !user?.role) return;
+
+          // If on /onboarding, only redirect if onboarding is complete
+          if (path.startsWith('/onboarding')) {
+            if (user.onboarding_complete !== true) return; // Stay on onboarding
+          }
+
           const dest = user.role === 'viewer' ? '/viewer' : '/';
           if (window.location.pathname !== dest) navigate(dest);
         };
