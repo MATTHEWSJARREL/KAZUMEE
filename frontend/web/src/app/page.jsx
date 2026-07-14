@@ -16,20 +16,12 @@ export default function HomePage() {
 
   useEffect(() => {
     const checkAuthAndRoute = async () => {
-      // Skip auth check if we're on onboarding, auth, or settings pages
-      // to prevent redirect loops
-      const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-      if (pathname.startsWith("/onboarding") || pathname.startsWith("/auth") || pathname.startsWith("/settings")) {
-        setShowLoading(false);
-        return;
-      }
-
-      // Check /auth/me with session credentials included
-      // This persists auth across page refreshes via session cookie
+      // HomePage only checks: show landing page OR show dashboard
+      // All other routing (onboarding, auth, viewer) is handled by those pages
       try {
         const res = await apiFetch("/auth/me", {
           method: "GET",
-          credentials: "include", // ← CRITICAL: Include session cookies
+          credentials: "include",
         });
 
         if (!res.ok) {
@@ -41,39 +33,29 @@ export default function HomePage() {
 
         const data = await res.json();
         const userRole = data?.user?.role;
-        const onboardingComplete = data?.user?.onboarding_complete;
 
+        // Only show dashboard for authenticated streamers
+        // Viewers and non-streamers will be handled by their respective pages
         if (userRole === "streamer") {
-          // Streamer must complete onboarding first
-          if (onboardingComplete === false) {
-            setShowLoading(false);
-            navigate("/onboarding", { replace: true });
-            return;
-          } else {
-            // Onboarding complete = show dashboard
-            setShowDashboard(true);
-            setShowLoading(false);
-          }
-        } else if (userRole === "viewer") {
-          // Authenticated viewer = redirect to /viewer
+          setShowDashboard(true);
           setShowLoading(false);
-          navigate("/viewer", { replace: true });
         } else {
-          // Unknown role = show landing page
+          // For viewers or unknown roles, show landing page
+          // They'll navigate to /viewer through other means
           setShowDashboard(false);
           setShowLoading(false);
         }
       } catch (error) {
         console.error("Error checking auth:", error);
-        // On error, assume not authenticated = show landing page
+        // On error, show landing page
         setShowDashboard(false);
         setShowLoading(false);
       }
     };
 
-    // CRITICAL: Wait for auth check to complete before rendering
+    // Check auth once on mount
     checkAuthAndRoute();
-  }, [navigate]);
+  }, []);
 
   if (showLoading) {
     return (
