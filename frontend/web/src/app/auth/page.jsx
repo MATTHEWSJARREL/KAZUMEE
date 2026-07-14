@@ -466,20 +466,49 @@ export default function AuthPage() {
                 <p>
                   Sign in with your email and password to access all the streaming tools.
                 </p>
-                <button type="button" className="ghost" onClick={() => setMode("login")}> 
+                <button type="button" className="ghost" onClick={() => setMode("login")}>
                   Sign In
                 </button>
               </div>
               <div className="overlay-panel overlay-right">
-                <h1>Join Kazumi</h1>
+                <h1>New to Kazumi?</h1>
                 <p>
-                  Create an account to get started with smart streaming.
+                  Create an account to get started with smart streaming, clip management, and AI-powered broadcast control.
                 </p>
-                <AuthSocialProof />
-                <button type="button" className="ghost" onClick={() => setMode("register")} style={{marginTop: "24px"}}>
+                <button type="button" className="ghost" onClick={() => setMode("register")}>
                   Create Account
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Social Proof - Side Stats */}
+          <div style={{
+            position: "absolute",
+            bottom: "40px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            gap: "24px",
+            justifyContent: "center",
+            alignItems: "center",
+            textAlign: "center",
+            fontSize: "13px",
+            color: "rgba(255, 255, 255, 0.7)"
+          }}>
+            <div>
+              <div style={{fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px"}}>500+</div>
+              <div>Active Streamers</div>
+            </div>
+            <div style={{width: "1px", height: "30px", background: "rgba(255, 255, 255, 0.2)"}}></div>
+            <div>
+              <div style={{fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px"}}>99%</div>
+              <div>Uptime</div>
+            </div>
+            <div style={{width: "1px", height: "30px", background: "rgba(255, 255, 255, 0.2)"}}></div>
+            <div>
+              <div style={{fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px"}}>⭐⭐⭐⭐⭐</div>
+              <div>Highly Rated</div>
             </div>
           </div>
         </div>
