@@ -1,25 +1,19 @@
 # Viewer Dashboard Audit & Fix Plan
 
-## Issues Found
+## Issues Fixed ✅
 
-### Critical (Breaking)
-1. ❌ **CORS errors on catchup/recap** - Blocked by browser
-2. ❌ **Settings routing loop** - Redirects to streamer settings then back
-3. ❌ **403 Forbidden on streamer-only endpoints** - /api/preferences, /api/settings, /policy
+1. ✅ **Settings routing loop** - ViewerSettingsModal now integrated
+2. ✅ **AbortError spam** - Timeout increased to 45s, suppressed from logs
+3. ✅ **Clip library not working** - Fixed to scroll to section
+4. ✅ **Recap unavailable message** - Better error messages
+5. ✅ **Request timeouts** - Increased from 20s to 45s
+6. ✅ **ViewerSettingsModal** - Theme, cleanse, compact, notifications, volume all working
 
-### High Priority (Non-functional)
-4. ❌ **Catchup recap crashes on no stream data** - Should show "No recent stream"
-5. ❌ **No viewer-specific settings** - Using shared settings with streamers
+## Issues Remaining ⚠️
 
-### Medium Priority (UX)
-6. ⚠️ **422 Error on streamer search** - Missing query parameter validation
-7. ⚠️ **AbortError on diagnostics fetch** - Signal aborted without reason
-
-## Fixes Applied ✅
-
-- ✅ Settings link now opens ViewerSettingsModal instead of routing
-- ✅ Catchup recap handles errors gracefully with user-friendly messages
-- ✅ ViewerSettingsModal component created (Theme, Chat Cleanse, Compact, Notifications, Volume)
+7. Test cache clearing if needed
+8. Verify 403 errors suppressed on all endpoints
+9. UI redesign to modern dashboard style
 
 ## Remaining Fixes Needed
 

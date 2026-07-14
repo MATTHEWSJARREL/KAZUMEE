@@ -1383,14 +1383,16 @@ export default function ViewerModePage() {
           <a href="/viewer">Home</a>
           <a href="#clips" onClick={(e) => {
             e.preventDefault();
-            const clipsSection = document.querySelector('[data-clips-section]');
-            if (clipsSection) clipsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+            document.getElementById("viewer-clips-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}>Clip Library</a>
           <a href="#settings" onClick={(e) => {
             e.preventDefault();
             setSettingsModalOpen(true);
           }}>Settings</a>
-          <a href="#comments">Comments</a>
+          <a href="#comments" onClick={(e) => {
+            e.preventDefault();
+            document.getElementById("viewer-ask-zumi")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}>Comments</a>
         </nav>
 
         <section className="viewer-glass-card viewer-vote-card">
@@ -1478,6 +1480,56 @@ export default function ViewerModePage() {
             ))}
             {!catchupHighlights.length && !(viewerData?.yourClips || []).length && (
               <div className="viewer-empty-card">No highlights yet. Run catch-up or request a clip while watching.</div>
+            )}
+          </div>
+        </section>
+
+        <section id="viewer-clips-panel" className="viewer-glass-card viewer-clips-panel">
+          <div className="viewer-section-title-row">
+            <div>
+              <span className="viewer-eyebrow">Clip Library</span>
+              <h2>Your clip requests</h2>
+            </div>
+            <button type="button" className="viewer-secondary-button viewer-small-button" onClick={() => document.getElementById("viewer-ask-zumi")?.scrollIntoView({ behavior: "smooth", block: "start" })}>New Clip</button>
+          </div>
+          <div className="viewer-clips-list">
+            {companionTrackers.length > 0 ? (
+              companionTrackers.map((tracker, idx) => (
+                <div key={idx} className="viewer-clip-request-item">
+                  <div>
+                    <strong>{tracker.question || "Clip request"}</strong>
+                    <small>{tracker.status === "answered" ? "✓ Approved" : tracker.status === "pending" ? "⏳ Pending" : "✗ Denied"}</small>
+                  </div>
+                  <time>{tracker.timestamp ? new Date(tracker.timestamp).toLocaleTimeString() : ""}</time>
+                </div>
+              ))
+            ) : (
+              <div className="viewer-empty-card">No clip requests yet. Use the Comments section to request clips.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="viewer-glass-card viewer-leaderboard-panel">
+          <div className="viewer-section-title-row">
+            <div>
+              <span className="viewer-eyebrow">Engagement</span>
+              <h2>Top Contributors</h2>
+            </div>
+          </div>
+          <div className="viewer-leaderboard-list">
+            {trustLog.length > 0 ? (
+              trustLog.slice(0, 10).map((entry, idx) => (
+                <div key={idx} className="viewer-leaderboard-item">
+                  <span className="viewer-rank">#{idx + 1}</span>
+                  <div>
+                    <strong>{entry.username || "Anonymous"}</strong>
+                    <small>{entry.action_type || "Participated"}</small>
+                  </div>
+                  <span className="viewer-score">{entry.impact_points || 0}⚡</span>
+                </div>
+              ))
+            ) : (
+              <div className="viewer-empty-card">No votes or commands yet. Participate to appear here!</div>
             )}
           </div>
         </section>
