@@ -2045,6 +2045,7 @@ function KazumiDashboard() {
 
         {/* Kazumi Chat Drawer */}
       </div>
+      </div>
 
     </div>
 
