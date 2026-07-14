@@ -33,11 +33,18 @@ export default function HomePage() {
 
         const data = await res.json();
         const userRole = data?.user?.role;
+        const onboardingComplete = data?.user?.onboarding_complete;
 
         if (userRole === "streamer") {
-          // Authenticated streamer = show full dashboard
-          setShowDashboard(true);
-          setShowLoading(false);
+          // Streamer must complete onboarding first
+          if (onboardingComplete === false) {
+            setShowLoading(false);
+            navigate("/onboarding", { replace: true });
+          } else {
+            // Onboarding complete = show dashboard
+            setShowDashboard(true);
+            setShowLoading(false);
+          }
         } else if (userRole === "viewer") {
           // Authenticated viewer = redirect to /viewer
           setShowLoading(false);

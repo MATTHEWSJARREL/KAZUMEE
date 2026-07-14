@@ -52,6 +52,29 @@ BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "
 BASE_EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "exports"))
 
 
+@router.post("/save-now")
+async def save_clip_now(request: Request):
+	"""Manually trigger clip save from OBS replay buffer (voice or button)"""
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamers only")
+
+	# Import executor (late binding to avoid circular imports)
+	from backend.commands.executor import executor
+
+	if not executor or not executor.obs:
+		raise HTTPException(status_code=503, detail="OBS not connected")
+
+	# Execute replay buffer save
+	result = await executor.execute("save_replay_buffer", {})
+
+	return {
+		"status": "ok",
+		"message": "Clip saved" if result.status == "ok" else f"Error: {result.message}",
+		"data": result.data if hasattr(result, "data") else {},
+	}
+
+
 @router.get("/")
 def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 	"""Get all approved clips"""
