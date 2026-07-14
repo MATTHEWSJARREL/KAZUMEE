@@ -25,6 +25,7 @@ import {
 export default function SettingsPage() {
   const { settings, loading, updateSetting, saveSettings, refreshSettings, setSettings } = useSettings();
   const [saving, setSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const isDarkMode = Boolean(settings?.appearance?.darkMode);
   const [backendStatus, setBackendStatus] = useState("checking");
   const [connections, setConnections] = useState([]);
@@ -547,17 +548,28 @@ export default function SettingsPage() {
 
             <h2 className="text-xs font-bold uppercase text-[#6B6480] mb-4 px-2">Configuration</h2>
 
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className={`w-full mb-4 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                showAdvanced
+                  ? 'bg-purple-600 text-white'
+                  : `${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`
+              }`}
+            >
+              {showAdvanced ? '↑ Basic Settings' : '↓ Show Advanced'}
+            </button>
+
             <nav className="space-y-1">
               {[
-                { icon: User, label: "Profile", id: "profile" },
-                { icon: Brain, label: "AI Personality", id: "ai" },
-                { icon: Mic, label: "Voice Engine", id: "voice" },
-                { icon: Link, label: "Integrations", id: "integrations" },
-                { icon: Shield, label: "Action Policy", id: "policy" },
+                { icon: User, label: "Profile", id: "profile", advanced: false },
+                { icon: Brain, label: "AI Personality", id: "ai", advanced: true },
+                { icon: Mic, label: "Voice Engine", id: "voice", advanced: true },
+                { icon: Link, label: "Integrations", id: "integrations", advanced: true },
+                { icon: Shield, label: "Action Policy", id: "policy", advanced: true },
 
-                { icon: Zap, label: "Automation", id: "automation" },
-                { icon: Brain, label: "Streamer AI", id: "streamer-ai" },
-              ].map((item) => (
+                { icon: Zap, label: "Automation", id: "automation", advanced: true },
+                { icon: Brain, label: "Streamer AI", id: "streamer-ai", advanced: true },
+              ].filter(item => !item.advanced || showAdvanced).map((item) => (
                 <a
                   key={item.id}
                   href={`#${item.id}`}
@@ -688,6 +700,7 @@ export default function SettingsPage() {
           </div>
           
           {/* AI Personality (The Real Logic) */}
+          {showAdvanced && (
           <div id="ai" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
             <div className="flex items-center gap-3 mb-6">
               <Brain className="w-5 h-5 text-purple-500" />
@@ -747,8 +760,10 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Voice Settings */}
+          {showAdvanced && (
           <div id="voice" className={`rounded-xl border ${isDarkMode ? 'border-[#242235]' : 'border-[#242235]'} p-6 bg-[#131120]`}>
 
             <div className="flex items-center gap-3 mb-6">
@@ -793,8 +808,10 @@ export default function SettingsPage() {
 
             </div>
           </div>
+          )}
 
           {/* API Integrations */}
+          {showAdvanced && (
           <div id="integrations" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
             <div className="flex items-center gap-3 mb-6">
               <Link className="w-5 h-5 text-green-500" />
@@ -1065,8 +1082,10 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Action Policy */}
+          {showAdvanced && (
           <div id="policy" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
             <div className="flex items-center gap-3 mb-6">
               <Shield className="w-5 h-5 text-red-500" />
@@ -1113,8 +1132,10 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Automation */}
+          {showAdvanced && (
           <div id="automation" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
             <div className="flex items-center gap-3 mb-6">
               <Zap className="w-5 h-5 text-yellow-500" />
@@ -1141,8 +1162,9 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+          )}
 
-          {profileUser?.role === "streamer" && (
+          {profileUser?.role === "streamer" && showAdvanced && (
             <div id="streamer-ai" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
               <div className="flex items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
