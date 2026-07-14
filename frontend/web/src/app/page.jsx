@@ -1143,7 +1143,7 @@ function KazumiDashboard() {
 	                    : "text-gray-700 hover:bg-white/10"
 	                } ${sidebarCollapsed ? "justify-center" : ""}`}
               >
-                <IconComponent className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                <IconComponent className="w-6 h-6" strokeWidth={1.5} />
                 {!sidebarCollapsed && <span>{item.name}</span>}
               </a>
 	            );
@@ -1273,23 +1273,10 @@ function KazumiDashboard() {
 
         {/* SCROLLABLE CONTENT */}
         <div className="flex-1 p-6 md:p-10 overflow-y-auto">
-        <div className="text-sm text-gray-500 mb-4 flex items-center gap-2">
-          <button
-            onClick={() => window.history.back()}
-            className="p-1 hover:bg-white/5 rounded-lg transition-colors"
-            title="Go back"
-          >
-            ←
-          </button>
-          <span>Pages</span>
-          <span className="mx-1.5 text-gray-300">/</span>
-          <span>Main Dashboard</span>
-        </div>
-
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
             <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-              Main Dashboard
+              My Dashboard
             </h2>
             {isAuthBypassEnabled() && (
               <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-yellow-100 text-yellow-700">
@@ -1336,6 +1323,14 @@ function KazumiDashboard() {
                 <Scissors className="w-5 h-5" />
                 <span className="text-sm font-semibold">{clipNowBusy ? "Saving..." : "Clip Now"}</span>
               </button>
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border shadow-sm transition-colors bg-white/5 border-white/10 text-[var(--text)] hover:bg-white/10"
+                title="Open Ask Zumi chat"
+              >
+                <MessageSquare className="w-5 h-5" />
+                <span className="text-sm font-semibold">Ask Zumi</span>
+              </button>
               <div className="px-4 py-2 rounded-2xl border border-white/10 bg-white/5 shadow-sm min-w-[170px]">
                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Stream Pulse</div>
                 <div className="flex items-end justify-between">
@@ -1360,59 +1355,65 @@ function KazumiDashboard() {
           )}
         </div>
 
-        {userRole === "streamer" && !obsState?.streaming && (
-          <div className="kazumi-card p-5 mb-8 border-l-4 border-black">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-sm">Pre-stream Checklist</h3>
-              {preStreamChecklist?.ready && (
-                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                  Ready to go live
-                </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              {(preStreamChecklist?.checks || []).map((check) => (
-                <div key={check.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                      check.passed ? "bg-green-500" : "bg-red-100 border border-red-300"
-                    }`}>
-                      {check.passed ? <CheckCircle className="w-3 h-3 text-white" /> : null}
-                    </div>
-                    <span className={`text-sm ${check.passed ? "text-gray-600" : "text-gray-900 font-medium"}`}>
-                      {check.label}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Pre-stream Checklist - Left Column */}
+          {userRole === "streamer" && !obsState?.streaming && (
+            <div className="lg:col-span-1">
+              <div className="kazumi-card p-5 border-l-4 border-black h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm">Pre-stream Checklist</h3>
+                  {preStreamChecklist?.ready && (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      Ready
                     </span>
-                  </div>
-                  {!check.passed && (
-                    <button
-                      onClick={() => handleChecklistFix(check)}
-                      className="text-xs font-semibold text-black underline underline-offset-2"
-                    >
-                      {check.fix_label || "Fix"}
-                    </button>
                   )}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {kpiCards.map((card, index) => {
-            const IconComponent = card.icon;
-            return (
-              <div key={index} className="kazumi-card p-6 flex items-center gap-4">
-                <div className={`w-[52px] h-[52px] border border-black/10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white ${card.color}`}>
-                  <IconComponent className="w-6 h-6" strokeWidth={1.5} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">{card.label}</div>
-                  <div className="text-[28px] font-semibold leading-none mb-1">{card.value}</div>
-                  <div className="text-xs text-[#16A34A]">{card.delta}</div>
+                <div className="space-y-2">
+                  {(preStreamChecklist?.checks || []).map((check) => (
+                    <div key={check.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                          check.passed ? "bg-green-500" : "bg-red-100 border border-red-300"
+                        }`}>
+                          {check.passed ? <CheckCircle className="w-3 h-3 text-white" /> : null}
+                        </div>
+                        <span className={`text-sm ${check.passed ? "text-gray-600" : "text-gray-900 font-medium"}`}>
+                          {check.label}
+                        </span>
+                      </div>
+                      {!check.passed && (
+                        <button
+                          onClick={() => handleChecklistFix(check)}
+                          className="text-xs font-semibold text-black underline underline-offset-2"
+                        >
+                          {check.fix_label || "Fix"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* KPI Cards - Right Columns */}
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${userRole === "streamer" && !obsState?.streaming ? "lg:col-span-2" : "lg:col-span-3"}`}>
+            {kpiCards.map((card, index) => {
+              const IconComponent = card.icon;
+              return (
+                <div key={index} className="kazumi-card p-4 flex items-center gap-3">
+                  <div className={`w-[48px] h-[48px] border border-black/10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white ${card.color}`}>
+                    <IconComponent className="w-5 h-5" strokeWidth={1.5} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-0.5">{card.label}</div>
+                    <div className="text-2xl font-semibold leading-none">{card.value}</div>
+                    <div className="text-xs text-[#16A34A]">{card.delta}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {postStreamReport && (
@@ -1423,11 +1424,6 @@ function KazumiDashboard() {
             </div>
           </div>
         )}
-
-        {/* OBS Status */}
-        <div className="kazumi-card p-6 mb-8">
-          <ObsStatus state={obsState} />
-        </div>
 
         {/* Ask Zumi */}
         {userRole === "streamer" && (
