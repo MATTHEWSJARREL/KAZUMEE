@@ -87,6 +87,7 @@ import AIApprovalDashboard from "../components/AIApprovalDashboard";
 import ClipManagement from "../components/ClipManagement";
 import ObsStatus from "../components/ObsStatus";
 import KazumiChat from "../components/KazumiChat";
+import KazumeeChatDrawer from "../components/KazumeeChat";
 import KazumiAvatarPremium from "../components/avatar/KazumiAvatarPremium";
 import {
   DashboardHeroCard,
@@ -1224,7 +1225,8 @@ function KazumiDashboard() {
             {authUser ? "Account" : "Sign In"}
           </a>
         </div>
-          </>
+              <KazumeeChatDrawer />
+    </>
         )}
       </div>
 
@@ -2092,6 +2094,7 @@ function KazumiDashboard() {
         </div>
       </div>
     )}
+        <KazumeeChatDrawer />
     </>
   );
 }
