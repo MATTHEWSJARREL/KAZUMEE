@@ -1546,7 +1546,7 @@ export default function ViewerModePage() {
             type="text"
             value={streamerSearch}
             onChange={(e) => setStreamerSearch(e.target.value)}
-            placeholder="Search by name, username, or platform"
+            placeholder="🔍 Search any Twitch or YouTube streamer..."
             className="viewer-input"
           />
           <div className="viewer-streamer-list">
@@ -1610,7 +1610,33 @@ export default function ViewerModePage() {
                 );
               })
             ) : (
-              <div className="viewer-muted-line">No streamers found. Create streamer accounts first.</div>
+              <div className="viewer-search-empty">
+                <div className="viewer-muted-line">
+                  {streamerSearch.trim() ? (
+                    <>
+                      <p>No results for "{streamerSearch}"</p>
+                      <p style={{fontSize: '12px', marginTop: '8px', color: 'rgba(255,255,255,0.5)'}}>
+                        Try searching with a different name or visit the platform directly
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p>🔍 Search for any Twitch or YouTube streamer</p>
+                      <p style={{fontSize: '12px', marginTop: '8px', color: 'rgba(255,255,255,0.5)'}}>
+                        Enter a streamer username to find them
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="viewer-search-tips" style={{marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                  <a href="https://twitch.tv" target="_blank" rel="noopener noreferrer" className="viewer-secondary-button viewer-small-button">
+                    Visit Twitch
+                  </a>
+                  <a href="https://youtube.com/live" target="_blank" rel="noopener noreferrer" className="viewer-secondary-button viewer-small-button">
+                    Visit YouTube
+                  </a>
+                </div>
+              </div>
             )}
           </div>
         </section>
