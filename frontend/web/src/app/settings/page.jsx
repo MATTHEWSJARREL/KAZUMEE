@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch, clearActiveStreamerId, clearAuthBypass, clearAuthToken, isAuthBypassEnabled, setAuthBypassEnabled } from "@/lib/apiClient";
 import { useSettings } from "@/lib/SettingsContext";
+import Tooltip, { LabelWithTooltip } from "@/components/Tooltip";
 import {
   Settings as SettingsIcon,
   User,
@@ -596,7 +597,10 @@ export default function SettingsPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Display Name</label>
+                <LabelWithTooltip
+                  label="Display Name"
+                  tooltip="Your name shown to viewers and in the dashboard. Keep it short and memorable!"
+                />
                 <input
                   type="text"
                   value={settings?.profile?.displayName || ""}
@@ -605,7 +609,10 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Platforms (comma separated)</label>
+                <LabelWithTooltip
+                  label="Platforms"
+                  tooltip="Where you stream (e.g., Twitch, YouTube, TikTok). Comma-separated."
+                />
                 <input
                   type="text"
                   value={platformInput}
@@ -632,7 +639,10 @@ export default function SettingsPage() {
 
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-2">Role</label>
+                <LabelWithTooltip
+                  label="Role"
+                  tooltip="Streamer: Full control of Kazumi. Viewer: Watch clips and engage with streamers."
+                />
                 <select
                   value={profileUser?.role || "streamer"}
                   onChange={(e) => handleRoleChange(e.target.value)}

@@ -30,6 +30,7 @@ import { ClipSearchProvider } from '@/lib/ClipSearchContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { RealtimeProvider } from '@/lib/realtime';
 import { AvatarProvider } from '@/lib/avatar/AvatarContext';
+import { KazumiResponseProvider } from '@/lib/KazumiResponseContext';
 // @ts-ignore
 import ClipSearchResults from '@/components/ClipSearchResults';
 // @ts-ignore
@@ -374,19 +375,21 @@ export function Layout({ children }: { children: ReactNode }) {
       <body className="bg-[var(--void)] text-[var(--text)] antialiased font-body">
         <QueryClientProvider client={queryClient}>
           <ClientOnly>
-            <SettingsProvider>
-              <AvatarProvider>
-                <RealtimeProvider>
-                  <ClipSearchProvider>
-                    <ErrorBoundaryWrapper>
-                      <RoleGuard />
-                      {children}
-                    </ErrorBoundaryWrapper>
-                    <GlobalExperience />
-                  </ClipSearchProvider>
-                </RealtimeProvider>
-              </AvatarProvider>
-            </SettingsProvider>
+            <KazumiResponseProvider>
+              <SettingsProvider>
+                <AvatarProvider>
+                  <RealtimeProvider>
+                    <ClipSearchProvider>
+                      <ErrorBoundaryWrapper>
+                        <RoleGuard />
+                        {children}
+                      </ErrorBoundaryWrapper>
+                      <GlobalExperience />
+                    </ClipSearchProvider>
+                  </RealtimeProvider>
+                </AvatarProvider>
+              </SettingsProvider>
+            </KazumiResponseProvider>
           </ClientOnly>
         </QueryClientProvider>
 
