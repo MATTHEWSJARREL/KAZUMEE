@@ -10,6 +10,8 @@ type KazumiAvatarPremiumProps = {
   animated?: boolean;
   onClick?: () => void;
   className?: string;
+  imageUrl?: string;
+  imageSrc?: string;
 };
 
 export default function KazumiAvatarPremium({
@@ -18,6 +20,8 @@ export default function KazumiAvatarPremium({
   animated = true,
   onClick,
   className = "",
+  imageUrl,
+  imageSrc,
 }: KazumiAvatarPremiumProps) {
   const [isListening, setIsListening] = useState(false);
 
@@ -117,8 +121,16 @@ export default function KazumiAvatarPremium({
           transform: `scale(${pulseScale})`,
         }}
       >
-        {/* Kazumi Face Emoji/Icon */}
-        <span className={`${config.text} select-none`}>🤖</span>
+        {/* Kazumi Face - Image or Emoji */}
+        {imageUrl || imageSrc ? (
+          <img
+            src={imageUrl || imageSrc}
+            alt="Kazumi"
+            className="w-full h-full rounded-full object-cover"
+          />
+        ) : (
+          <span className={`${config.text} select-none`}>🤖</span>
+        )}
       </div>
 
       {/* Status Indicator (LED Ring) */}

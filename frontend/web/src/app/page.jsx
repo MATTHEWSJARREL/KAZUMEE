@@ -1233,6 +1233,7 @@ function KazumiDashboard() {
               <KazumiAvatarPremium
                 status={obsState?.connected ? "online" : "offline"}
                 size="lg"
+                imageSrc="/kazumee-hero.png"
               />
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white">Kazumi AI</h1>

@@ -223,31 +223,31 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
 
       {isOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-4">
-          <div className="bg-white rounded-t-lg shadow-2xl w-full max-w-md h-96 flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-slate-900 rounded-t-lg shadow-2xl w-full max-w-md h-96 flex flex-col border border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-purple-900/20 to-purple-800/20">
               <div className="flex items-center gap-2">
                 <KazumiAvatar state={avatarState} size={40} showSpeechVisualizer={false} className="shrink-0" />
-                <MessageSquare className="w-5 h-5 text-blue-600" />
-                <span className="font-bold text-gray-900">
+                <MessageSquare className="w-5 h-5 text-purple-400" />
+                <span className="font-bold text-white">
                   Kazumi Chat ({role})
                 </span>
               </div>
               <button
                 onClick={closeDrawer}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1 hover:bg-white/10 rounded-full transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-800/30">
         {role === "viewer" && shieldMsLeft > 0 && (
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-gray-500">
             Syncing with stream delay…
           </div>
         )}
         {messages.length === 0 ? (
-                <div className="text-center text-gray-500 text-sm">
+                <div className="text-center text-gray-500 text-sm mt-8">
                   Start a conversation with Kazumi...
                 </div>
               ) : (
@@ -263,14 +263,14 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
                     <div
                       className={`max-w-xs px-4 py-2 rounded-lg ${
                         message.sender === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900"
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-900 text-white border border-purple-500/30"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">
+                      <p className="text-sm whitespace-pre-wrap font-medium">
                         {renderWithLinks(message.text)}
                       </p>
-                      <span className="text-xs opacity-70 mt-1 block">
+                      <span className="text-xs opacity-60 mt-1 block">
                         {new Date(message.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
@@ -280,7 +280,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-white/10 bg-slate-800/50">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -288,17 +288,17 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-white/10 rounded-lg bg-slate-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <button
                   onClick={isListening ? stopListening : startListening}
                   disabled={!voiceEnabled}
                   className={`p-2 rounded-lg transition-colors ${
                     !voiceEnabled
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      ? "bg-white/5 text-gray-500 cursor-not-allowed"
                       : isListening
-                        ? "bg-red-500 hover:bg-red-600 text-white"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        ? "bg-red-600 hover:bg-red-700 text-white"
+                        : "bg-white/10 hover:bg-white/20 text-gray-300"
                   }`}
                   title={isListening ? "Stop listening" : "Start voice input"}
                 >
@@ -311,7 +311,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
                 <button
                   onClick={handleSend}
                   disabled={!inputMessage.trim()}
-                  className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  className="p-2 bg-purple-600 hover:bg-purple-700 disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                 >
                   <Send className="w-5 h-5" />
                 </button>
