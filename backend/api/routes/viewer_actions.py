@@ -1132,6 +1132,60 @@ def companion_analyze(
     )
     db.commit()
 
+    # --- LLM answer generation (Groq) ---
+    try:
+        from groq import Groq
+
+        groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+        # Build context from recent stream events
+        recent_events = (
+            db.query(StreamEvent)
+            .filter(
+                StreamEvent.streamer_id == streamer_id,
+                StreamEvent.created_at >= datetime.now(timezone.utc) - timedelta(minutes=30),
+            )
+            .order_by(StreamEvent.created_at.desc())
+            .limit(20)
+            .all()
+        )
+
+        context_lines = []
+        for event in recent_events:
+            if getattr(event, "message", None):
+                context_lines.append(f"{event.event_type}: {event.message}")
+
+        context = "\n".join(context_lines) if context_lines else "No recent stream events available."
+
+        system_prompt = """You are Zumi, an AI watching a live stream right now.
+A viewer just joined and asked you a question.
+Answer conversationally using only the stream context provided.
+Keep your answer under 60 words.
+Sound like a knowledgeable friend who has been watching the whole time, not an assistant.
+Never say you cannot help. Always give a useful answer based on the context available."""
+
+        user_message = f"""Stream context from the last 30 minutes:
+{context}
+
+Viewer question: {payload.message}
+
+Answer as Zumi:"""
+
+        completion = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            max_tokens=150,
+            temperature=0.7,
+        )
+
+        answer = completion.choices[0].message.content.strip()
+
+    except Exception:
+        answer = "The stream has been active for a while. Check the highlights for the best moments so far."
+
     return {
         "status": "success",
         "improved_message": improved,
@@ -1139,6 +1193,7 @@ def companion_analyze(
         "notice_score": notice_score,
         "duplicate_count_recent": duplicate_count,
         "recommendation": recommendation,
+        "answer": answer,
     }
 
 
@@ -1318,6 +1373,137 @@ def catchup_recap(
     else:
         recap = f"Current goal: {goal}. Deaths: {death_count}. Mood: {mood}."
 
+    # Attach top 3 clip candidates ordered by moment_score (if available).
+    clip_rows = (
+        db.query(Clip)
+        .filter(
+            Clip.streamer_id == streamer_id,
+            or_(Clip.status == "approved", Clip.status == "pending"),
+        )
+        .order_by(Clip.moment_score.desc().nullslast(), Clip.quality_score.desc().nullslast(), Clip.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    # Fallback if moment_score isn't populated.
+    if not clip_rows:
+        clip_rows = (
+            db.query(Clip)
+            .filter(
+                Clip.streamer_id == streamer_id,
+                or_(Clip.status == "approved", Clip.status == "pending"),
+            )
+            .order_by(Clip.quality_score.desc().nullslast(), Clip.created_at.desc())
+            .limit(3)
+            .all()
+        )
+
+    def _clip_moment_label(c: Clip) -> str | None:
+        tags = c.tags if isinstance(c.tags, list) else []
+        if tags:
+            return tags[0]
+        # Best-effort from stored moment score/confidence if tags are missing.
+        ms = getattr(c, "moment_score", None)
+        if ms is None:
+            return "Clutch moment detected."
+        try:
+            ms_f = float(ms)
+        except Exception:
+            ms_f = None
+        if ms_f is not None and ms_f >= 0.75:
+            return "Clutch moment detected."
+        if ms_f is not None and ms_f >= 0.45:
+            return "Momentum spike detected."
+        return "Chat went off right here."
+
+    clips_payload = [
+        {
+            "id": c.id,
+            "title": c.title or f"Highlight #{c.id}",
+            "url": c.file_path,
+            "thumbnail_url": c.thumbnail_path,
+            "timestamp": c.created_at.isoformat() if c.created_at else None,
+            "moment_label": _clip_moment_label(c),
+        }
+        for c in clip_rows
+    ]
+
+    # Energy rating derived from inferred mood (presentational only).
+    mood_l = (mood or "").lower()
+    if "hype" in mood_l or "energetic" in mood_l:
+        energy_rating = "Hype"
+    elif "frustrated" in mood_l:
+        energy_rating = "Heating Up"
+    elif "steady" in mood_l or "focused" in mood_l:
+        energy_rating = "Chill"
+    else:
+        energy_rating = "Heating Up"
+
+    # --- Groq-backed recap generation ---
+    from groq import Groq
+
+    groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+    recent_events = (
+        db.query(StreamEvent)
+        .filter(
+            StreamEvent.streamer_id == streamer_id,
+            StreamEvent.created_at >= datetime.now(timezone.utc) - timedelta(minutes=60),
+        )
+        .order_by(StreamEvent.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    event_lines = []
+    for e in recent_events:
+        if e.message:
+            event_lines.append(f"[{e.event_type}] {e.message}")
+
+    recent_clips = (
+        db.query(Clip)
+        .filter(
+            Clip.streamer_id == streamer_id,
+            Clip.status == "approved",
+        )
+        .order_by(Clip.created_at.desc())
+        .limit(3)
+        .all()
+    )
+
+    clip_count = len(recent_clips)
+    events_summary = "\n".join(event_lines[:30]) if event_lines else "No events yet."
+
+    prompt = f"""You are Zumi, an AI that has been watching a live stream for the past hour.
+A viewer just joined late and needs to be caught up quickly.
+
+Stream events from the last 60 minutes:
+{events_summary}
+
+Clips saved: {clip_count}
+
+Write a catch-up recap for the late viewer. Follow these rules exactly:
+- Write in present tense as if briefing a friend
+- Maximum 100 words
+- Include what has been happening, the current mood of chat, and what is happening RIGHT NOW
+- End with an energy level: Chill, Heating Up, Hype, or Chaos
+- Sound like a knowledgeable friend not a robot
+
+Recap:"""
+
+    try:
+        completion = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.7,
+        )
+        recap_text = completion.choices[0].message.content.strip()
+    except Exception:
+        recap_text = "The stream has been active for a while with good energy in chat. Check the highlights below for the best moments so far."
+
+
+
+
     if viewer:
         db.add(
             ViewerAction(
@@ -1335,7 +1521,9 @@ def catchup_recap(
     return {
         "status": "success",
         "mode": "full" if mode == "full" else "quick",
-        "recap": recap,
+        "recap": recap_text,
+        "energy_rating": energy_rating,
+        "clips": clips_payload,
         "goal": goal,
         "death_count": death_count,
         "mood": mood,
@@ -1344,6 +1532,7 @@ def catchup_recap(
         "dominant_platform": dominant_platform,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
 
 
 @router.post("/api/viewer/catchup/highlights")

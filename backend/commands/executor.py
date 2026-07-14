@@ -13,6 +13,33 @@ from backend.database.models.platform_connection import PlatformConnection
 from backend.core.crypto import decrypt_token
 
 
+def resolve_clip_requester(payload: Optional[Dict] = None) -> Tuple[str, Optional[object], str]:
+    payload = payload or {}
+
+    requester_type = str(payload.get("requester_type") or "").strip().lower() or None
+    requester_id = payload.get("requester_id")
+    requester_name = payload.get("requester_name") or payload.get("streamer_name") or payload.get("name")
+
+    if requester_type in {"viewer", "streamer", "ai_observer"}:
+        if requester_name is None or requester_name == "":
+            requester_name = "Anonymous"
+        return requester_type, requester_id, str(requester_name)
+
+    role = str(payload.get("role") or payload.get("user_role") or payload.get("requester_role") or "").strip().lower()
+    if role == "streamer":
+        resolved_name = requester_name or payload.get("streamer_name") or "Anonymous"
+        return "streamer", payload.get("streamer_id") or requester_id, str(resolved_name)
+
+    if role == "viewer":
+        resolved_name = requester_name or "Anonymous"
+        return "viewer", requester_id, str(resolved_name)
+
+    if requester_type is None:
+        return "viewer", requester_id, str(requester_name or "Anonymous")
+
+    return requester_type, requester_id, str(requester_name or "Anonymous")
+
+
 class CommandExecutor:
     def __init__(self, obs=None, clip_searcher=None, broadcaster=None, db_session_factory=None):
         self.log = get_logger("CommandExecutor")
@@ -897,9 +924,7 @@ class CommandExecutor:
                 clip_path = os.path.join("backend", "data", "clips", clip_filename)
 
                 # Get requester info from payload
-                requester_type = payload.get("requester_type", "viewer")
-                requester_id = payload.get("requester_id")
-                requester_name = payload.get("requester_name", "Anonymous")
+                requester_type, requester_id, requester_name = resolve_clip_requester(payload)
 
                 session = db.query(StreamSession).filter(StreamSession.id == 1).first()
                 streamer_id = session.streamer_id if session else None

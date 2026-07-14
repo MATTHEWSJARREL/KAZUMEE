@@ -13,6 +13,7 @@ type Tree = {
 	path: string;
 	children: Tree[];
 	hasPage: boolean;
+	pageExt: 'jsx' | 'tsx';
 	isParam: boolean;
 	paramName: string;
 	isCatchAll: boolean;
@@ -24,21 +25,19 @@ function buildRouteTree(dir: string, basePath = ''): Tree {
 		path: basePath,
 		children: [],
 		hasPage: false,
+		pageExt: 'jsx',
 		isParam: false,
 		isCatchAll: false,
 		paramName: '',
 	};
 
-	// Check if the current directory name indicates a parameter
 	const dirName = basePath.split('/').pop();
 	if (dirName?.startsWith('[') && dirName.endsWith(']')) {
 		node.isParam = true;
 		const paramName = dirName.slice(1, -1);
-
-		// Check if it's a catch-all parameter (e.g., [...ids])
 		if (paramName.startsWith('...')) {
 			node.isCatchAll = true;
-			node.paramName = paramName.slice(3); // Remove the '...' prefix
+			node.paramName = paramName.slice(3);
 		} else {
 			node.paramName = paramName;
 		}
@@ -52,9 +51,13 @@ function buildRouteTree(dir: string, basePath = ''): Tree {
 			const childPath = basePath ? `${basePath}/${file}` : file;
 			const childNode = buildRouteTree(filePath, childPath);
 			node.children.push(childNode);
-		} else if (file === 'page.jsx') {
+		} else if (file === 'page.tsx') {
 			node.hasPage = true;
-    }
+			node.pageExt = 'tsx';
+		} else if (file === 'page.jsx' && !node.hasPage) {
+			node.hasPage = true;
+			node.pageExt = 'jsx';
+		}
 	}
 
 	return node;
@@ -65,34 +68,28 @@ function generateRoutes(node: Tree): RouteConfigEntry[] {
 
 	if (node.hasPage) {
 		const componentPath =
-			node.path === '' ? `./${node.path}page.jsx` : `./${node.path}/page.jsx`;
+			node.path === ''
+				? `./${node.path}page.${node.pageExt}`
+				: `./${node.path}/page.${node.pageExt}`;
 
 		if (node.path === '') {
 			routes.push(index(componentPath));
 		} else {
-			// Handle parameter routes
 			let routePath = node.path;
-
-			// Replace all parameter segments in the path
 			const segments = routePath.split('/');
 			const processedSegments = segments.map((segment) => {
 				if (segment.startsWith('[') && segment.endsWith(']')) {
 					const paramName = segment.slice(1, -1);
-
-					// Handle catch-all parameters (e.g., [...ids] becomes *)
 					if (paramName.startsWith('...')) {
-						return '*'; // React Router's catch-all syntax
+						return '*';
 					}
-					// Handle optional parameters (e.g., [[id]] becomes :id?)
 					if (paramName.startsWith('[') && paramName.endsWith(']')) {
 						return `:${paramName.slice(1, -1)}?`;
 					}
-					// Handle regular parameters (e.g., [id] becomes :id)
 					return `:${paramName}`;
 				}
 				return segment;
 			});
-
 			routePath = processedSegments.join('/');
 			routes.push(route(routePath, componentPath));
 		}
@@ -104,14 +101,7 @@ function generateRoutes(node: Tree): RouteConfigEntry[] {
 
 	return routes;
 }
-if (import.meta.env.DEV) {
-	import.meta.glob('./**/page.jsx', {});
-	if (import.meta.hot) {
-		import.meta.hot.accept((newSelf) => {
-			import.meta.hot?.invalidate();
-		});
-	}
-}
+
 const tree = buildRouteTree(__dirname);
 const notFound = route('*?', './__create/not-found.tsx');
 const routes = [...generateRoutes(tree), notFound];

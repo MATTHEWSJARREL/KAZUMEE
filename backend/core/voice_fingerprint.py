@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 
 # Simulated embedding dimension (actual impl would use proper voice embedding model)
 EMBEDDING_DIM = 150
-SIMILARITY_THRESHOLD = 0.65
+SIMILARITY_THRESHOLD = 0.55
 
 # Skip fingerprint checks for the first few seconds after the agent starts,
 # since mic/recording quality may still be stabilizing.
-WARMUP_SECONDS = 30
+WARMUP_SECONDS = 15  # Reduced from 60 for better UX
 
 
 def generate_embedding(audio_samples: bytes) -> np.ndarray:

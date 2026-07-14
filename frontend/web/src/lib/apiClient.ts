@@ -163,21 +163,23 @@ async function fetchWithRetry(
 ): Promise<Response> {
   const method = (options.method || "GET").toUpperCase();
   const canRetry = method === "GET" || method === "HEAD";
+
   try {
-    const res = await fetch(url, options);
-    if (canRetry && retries > 0 && [502, 503, 504].includes(res.status)) {
-      await sleep(300 * (3 - retries));
-      return fetchWithRetry(url, options, retries - 1);
-    }
-    return res;
-  } catch (err) {
+    return await fetch(url, options);
+  } catch (err: any) {
+    // If an AbortController intentionally cancelled the request (unmount, new recap, etc),
+    // do not retry. Retrying would just re-emit AbortError and create noise.
+    if (err?.name === "AbortError") throw err;
+
     if (canRetry && retries > 0) {
       await sleep(300 * (3 - retries));
       return fetchWithRetry(url, options, retries - 1);
     }
+
     throw err;
   }
 }
+
 
 export async function apiFetch(
   path: string,
@@ -228,12 +230,17 @@ export async function apiFetch(
     : "";
 
   try {
+    // Auth endpoints need include credentials to handle session cookies
+    const defaultCredentials = shouldCacheAuthMe ? "include" : "same-origin";
     const finalOptions: RequestInit = {
       ...options,
-      credentials: "include",
+      // Use include for /auth/me to ensure session cookies are sent
+      // Otherwise default to same-origin for consistency
+      credentials: options.credentials || defaultCredentials,
       headers,
       signal: options.signal || controller?.signal,
     };
+
 
     if (shouldCacheAuthMe) {
       const cached = authMeCache || readStoredAuthMe();

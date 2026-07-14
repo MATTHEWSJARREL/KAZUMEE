@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useWebSocket } from './useWebSocket';
+import { useRealtime } from '@/lib/realtime/useRealtime';
+
 
 export function usePanicMode() {
   const [isPanicMode, setIsPanicMode] = useState(false);
-  const { lastMessage } = useWebSocket();
+  const { lastMessage } = useRealtime();
 
   useEffect(() => {
+
     // Listen for panic mode events from WebSocket
     if (lastMessage !== null && lastMessage.type === 'PANIC_MODE') {
       setIsPanicMode(true);

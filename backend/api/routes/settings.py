@@ -78,8 +78,9 @@ def get_settings(request: Request):
         db.close()
 
 
-@router.put("/api/settings")
+@router.put("/streamer/settings", response_model=None)
 async def update_settings(request: Request):
+    # Alias route (kept for backward compatibility)
     payload = await request.json()
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Invalid settings payload")
@@ -102,3 +103,9 @@ async def update_settings(request: Request):
         return {"status": "success", "settings": merged}
     finally:
         db.close()
+
+
+@router.put("/api/settings", response_model=None)
+async def update_settings_api(request: Request):
+    # Alias route
+    return await update_settings(request)

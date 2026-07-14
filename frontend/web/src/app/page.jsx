@@ -1,4 +1,89 @@
 "use client";
+
+// Smart routing wrapper - handles landing page + auth redirect
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useNavigate } from "react-router";
+import { getAuthToken, apiFetch } from "@/lib/apiClient";
+import LandingPage from "../components/landing/LandingPage";
+
+// Placeholder for dashboard (imported below after wrapper)
+let DashboardComponent = null;
+
+export default function HomePage() {
+  const navigate = useNavigate();
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [showLoading, setShowLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuthAndRoute = async () => {
+      // Check /auth/me with session credentials included
+      // This persists auth across page refreshes via session cookie
+      try {
+        const res = await apiFetch("/auth/me", {
+          method: "GET",
+          credentials: "include", // ← CRITICAL: Include session cookies
+        });
+
+        if (!res.ok) {
+          // Not authenticated = show landing page
+          setShowDashboard(false);
+          setShowLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        const userRole = data?.user?.role;
+
+        if (userRole === "streamer") {
+          // Authenticated streamer = show full dashboard
+          setShowDashboard(true);
+          setShowLoading(false);
+        } else if (userRole === "viewer") {
+          // Authenticated viewer = redirect to /viewer
+          setShowLoading(false);
+          navigate("/viewer", { replace: true });
+        } else {
+          // Unknown role = show landing page
+          setShowDashboard(false);
+          setShowLoading(false);
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+        // On error, assume not authenticated = show landing page
+        setShowDashboard(false);
+        setShowLoading(false);
+      }
+    };
+
+    // CRITICAL: Wait for auth check to complete before rendering
+    checkAuthAndRoute();
+  }, [navigate]);
+
+  if (showLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page for unauthenticated users
+  // Authenticated streamers see the dashboard below
+  if (!showDashboard) {
+    return <LandingPage />;
+  }
+
+  // Authenticated streamer - render the full dashboard
+  return <KazumiDashboard />;
+}
+
+// ============================================
+// KAZUMI DASHBOARD - Streamer Command Center
+// ============================================
+
 import AIApprovalDashboard from "../components/AIApprovalDashboard";
 import ClipManagement from "../components/ClipManagement";
 import ObsStatus from "../components/ObsStatus";
@@ -6,9 +91,8 @@ import { useObsTruth } from "../hooks/useObsTruth";
 import { usePanicMode } from "../hooks/usePanicMode";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useSettings } from "../lib/SettingsContext";
-import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { apiFetch, getActiveStreamerId, getAuthToken, isAuthBypassEnabled, setActiveStreamerId } from "@/lib/apiClient";
+import { getActiveStreamerId, isAuthBypassEnabled, setActiveStreamerId } from "@/lib/apiClient";
 import { API_BASE } from "../config";
 import {
   Home, Radio, Scissors, Shield, Users, Settings, TrendingUp, Mic, Bot,
@@ -75,7 +159,7 @@ const parseDelayedCommand = (value) => {
   };
 };
 
-export default function KazumiDashboard() {
+function KazumiDashboard() {
   const [mode, setMode] = useState("streamer");
   const [toolSearch, setToolSearch] = useState("");
   const [dashboardData, setDashboardData] = useState(null);
@@ -115,6 +199,10 @@ export default function KazumiDashboard() {
   const [obsCameras, setObsCameras] = useState([]);
   const [sourcePanelLoading, setSourcePanelLoading] = useState(false);
   const [sourceActionBusy, setSourceActionBusy] = useState({});
+  const [askZumiInput, setAskZumiInput] = useState("");
+  const [askZumiResponse, setAskZumiResponse] = useState("");
+  const [askZumiLoading, setAskZumiLoading] = useState(false);
+  const [askZumiHistory, setAskZumiHistory] = useState([]);
   const recognitionRef = useRef(null);
   const shouldRestartRecognitionRef = useRef(false);
   const previousStreamingRef = useRef(null);
@@ -796,6 +884,45 @@ export default function KazumiDashboard() {
     }
   };
 
+  const handleAskZumi = async () => {
+    if (!askZumiInput.trim()) return;
+    const question = askZumiInput.trim();
+    setAskZumiInput("");
+    setAskZumiLoading(true);
+    try {
+      const response = await apiFetch("/api/assistant/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: question,
+          mode: "ask",
+          context: {
+            viewers: dashboardData?.currentViewers || 0,
+            health_score: dashboardData?.healthScore || 0,
+            recent_events: (liveEvents || []).slice(-10).map(e => e.description || e.type || "event")
+          }
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+      const data = await response.json();
+      const answer = data?.message || data?.answer || "Thanks for the question! I'm analyzing your stream data.";
+      setAskZumiResponse(answer);
+      setAskZumiHistory(prev => [...prev, { question, answer, timestamp: new Date().toISOString() }]);
+      toast.success("Zumi responded!");
+    } catch (error) {
+      console.error("Error asking Zumi:", error);
+      // Fallback response if AI is unavailable
+      const fallbackAnswer = "I'm having trouble connecting to my AI brain right now. Try again in a moment!";
+      setAskZumiResponse(fallbackAnswer);
+      setAskZumiHistory(prev => [...prev, { question, answer: fallbackAnswer, timestamp: new Date().toISOString() }]);
+      toast.error("Zumi is temporarily unavailable");
+    } finally {
+      setAskZumiLoading(false);
+    }
+  };
+
   const navItems = [
     { name: "Dashboard", icon: Home, href: "/", active: true, roles: ["streamer"] },
     { name: "Viewer Mode", icon: Users, href: "/viewer", roles: ["viewer"] },
@@ -1120,6 +1247,31 @@ export default function KazumiDashboard() {
                 {isVoiceListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 <span className="text-sm font-semibold">{isVoiceListening ? "Listening" : "Voice"}</span>
               </button>
+              <button
+                onClick={async () => {
+                  setClipNowBusy(true);
+                  toast.loading("Clipping...");
+                  try {
+                    const res = await apiFetch("/api/clips/save-now", { method: "POST" });
+                    if (res.ok) {
+                      toast.success("Clip saved!");
+                    } else {
+                      toast.error("Failed to save clip");
+                    }
+                  } catch (error) {
+                    console.error("Clip error:", error);
+                    toast.error("Error saving clip");
+                  } finally {
+                    setClipNowBusy(false);
+                  }
+                }}
+                disabled={clipNowBusy}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border shadow-sm transition-colors bg-white/5 border-white/10 text-[var(--text)] hover:bg-white/10 disabled:opacity-50"
+                title="Save a clip now"
+              >
+                <Scissors className="w-5 h-5" />
+                <span className="text-sm font-semibold">{clipNowBusy ? "Saving..." : "Clip Now"}</span>
+              </button>
               <div className="px-4 py-2 rounded-2xl border border-white/10 bg-white/5 shadow-sm min-w-[170px]">
                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Stream Pulse</div>
                 <div className="flex items-end justify-between">
@@ -1212,6 +1364,55 @@ export default function KazumiDashboard() {
         <div className="kazumi-card p-6 mb-8">
           <ObsStatus state={obsState} />
         </div>
+
+        {/* Ask Zumi */}
+        {userRole === "streamer" && (
+          <div className="kazumi-card p-6 mb-8">
+            <div className="mb-4">
+              <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">Ask Zumi</div>
+              <h2 className="text-lg font-bold">Stream Intelligence</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={askZumiInput}
+                  onChange={(e) => setAskZumiInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleAskZumi()}
+                  placeholder="Ask Zumi... e.g., 'Why is chat so hyped?', 'What should I do next?'"
+                  className="flex-1 px-4 py-2 text-sm rounded-lg border border-black/10 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                  disabled={askZumiLoading}
+                />
+                <button
+                  onClick={handleAskZumi}
+                  disabled={askZumiLoading || !askZumiInput.trim()}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-black text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {askZumiLoading ? "..." : "Ask"}
+                </button>
+              </div>
+              {askZumiResponse && (
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <div className="text-xs uppercase tracking-widest text-blue-700 font-semibold mb-2">Zumi's Response</div>
+                  <div className="text-sm text-blue-900 leading-relaxed">{askZumiResponse}</div>
+                </div>
+              )}
+              {askZumiHistory.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-black/10">
+                  <div className="text-xs uppercase tracking-widest text-gray-400 mb-3">Recent Questions</div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {askZumiHistory.slice(-5).reverse().map((item, idx) => (
+                      <div key={idx} className="text-xs">
+                        <div className="font-semibold text-gray-700">Q: {item.question}</div>
+                        <div className="text-gray-500 italic">A: {item.answer.substring(0, 100)}...</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {userRole === "streamer" && (
           <div className="kazumi-card p-6 mb-8">

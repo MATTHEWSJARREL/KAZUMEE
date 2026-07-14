@@ -27,6 +27,7 @@ from backend.api.routes import (
     commands,
     moderation,
     streams,
+    streamer_search,
     obs as obs_router, # Renamed here
 )
 
@@ -42,11 +43,15 @@ from backend.api.routes import assistant as assistant_router
 from backend.api.routes import pricing as pricing_router
 from backend.api.routes import streamer_ai as streamer_ai_router
 from backend.api.routes import director as director_router
+from backend.api.routes import post_stream_report as post_stream_report_router
+
 from backend.api.routes import ml_training as ml_training_router
 from backend.api.routes import voice_agent as voice_agent_router
 from backend.api.routes import billing as billing_router
 from backend.api.routes import cameras as cameras_router
 from backend.api.routes import irl_phrases as irl_phrases_router
+from backend.api.routes import onboarding as onboarding_router
+
 
 # Central dependencies
 from backend.commands.obs_adapter import obs_bridge
@@ -431,6 +436,19 @@ async def lifespan(app: FastAPI):
                     "source": "voice_agent",
                 },
             }
+            # Special hook used by VoiceAgentService for instant streamer feedback.
+            if command_text == "__notify_clipping__":
+                asyncio.create_task(
+                    ws_manager.broadcast(
+                        {
+                            "type": "toast",
+                            "streamer_id": streamer_id,
+                            "data": {"message": "Zumi is clipping that now..."},
+                        }
+                    )
+                )
+                return {"status": "ok", "action": None, "message": "notified"}
+
             asyncio.create_task(ws_manager.broadcast(voice_event))
 
             event_log.insert(
@@ -774,12 +792,18 @@ app.include_router(assistant_router.router, prefix="", tags=["Assistant"])
 app.include_router(pricing_router.router, prefix="", tags=["Pricing"])
 app.include_router(streamer_ai_router.router, prefix="", tags=["StreamerAI"])
 app.include_router(director_router.router, prefix="", tags=["Director"])
+app.include_router(post_stream_report_router.router, prefix="", tags=["PostStreamReport"])
+
 app.include_router(ml_training_router.router, prefix="", tags=["MLTraining"])
 app.include_router(voice_agent_router.router, prefix="", tags=["VoiceAgent"])
 app.include_router(billing_router.router, prefix="", tags=["Billing"])
 app.include_router(cameras_router.router, prefix="", tags=["Cameras"])
 app.include_router(irl_phrases_router.router, prefix="", tags=["IRLPhrases"])
+app.include_router(streamer_search.router, prefix="", tags=["StreamerSearch"])
+app.include_router(onboarding_router.router, prefix="", tags=["Onboarding"])
 app.include_router(obs_router.router) # Updated to use renamed router
+
+
 
 # --------------------------------------------------
 # API: Analytics (Operational)

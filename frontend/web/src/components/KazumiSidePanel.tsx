@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { X, Send, Pin, Search } from "lucide-react";
 import { apiFetch } from "@/lib/apiClient";
 import { useSettings } from "@/lib/SettingsContext";
+import { useAvatar } from "@/lib/avatar/useAvatar";
+import KazumiAvatar from "./avatar/KazumiAvatar";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -34,6 +36,7 @@ export default function KazumiSidePanel({ open, onClose, userKey, role }: Props)
   const [pinned, setPinned] = useState<ChatMessage[]>([]);
   const [savingPrompt, setSavingPrompt] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const { avatarState, setAvatarState } = useAvatar();
   const storageKey = buildStorageKey(userKey, mode);
   const pinKey = `kazumi_assistant_pins_${userKey || "anonymous"}_${mode}`;
   const { settings, updateSetting, saveSettings } = useSettings();
@@ -105,6 +108,14 @@ export default function KazumiSidePanel({ open, onClose, userKey, role }: Props)
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
+  useEffect(() => {
+    if (loading) {
+      setAvatarState("thinking");
+      return;
+    }
+    setAvatarState("idle");
+  }, [loading, setAvatarState]);
+
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -115,6 +126,7 @@ export default function KazumiSidePanel({ open, onClose, userKey, role }: Props)
     };
     setMessages((prev) => [...prev, nextUser]);
     setInput("");
+    setAvatarState("speaking");
     setLoading(true);
 
     try {
@@ -146,6 +158,7 @@ export default function KazumiSidePanel({ open, onClose, userKey, role }: Props)
         },
       ]);
     } catch (e: any) {
+      setAvatarState("alert");
       setMessages((prev) => [
         ...prev,
         {
@@ -240,7 +253,10 @@ export default function KazumiSidePanel({ open, onClose, userKey, role }: Props)
     >
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="font-semibold text-gray-900">Ask Kazumi</div>
+          <div className="flex items-center gap-2">
+            <KazumiAvatar state={avatarState} size={36} showSpeechVisualizer={false} className="shrink-0" />
+            <div className="font-semibold text-gray-900">Ask Kazumi</div>
+          </div>
           <div className="flex items-center gap-1 text-[11px]">
             <button
               onClick={() => setMode("ask")}

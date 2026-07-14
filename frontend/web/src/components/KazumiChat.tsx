@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/apiClient";
 import { useLatencyShield } from "@/hooks/useLatencyShield";
 import { useSettings } from "@/lib/SettingsContext";
+import { useAvatar } from "@/lib/avatar/useAvatar";
+import KazumiAvatar from "./avatar/KazumiAvatar";
 
 type ChatMessage = {
   sender: "user" | "kazumi";
@@ -45,6 +47,8 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
   const [messagesInternal, setMessagesInternal] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const { avatarState, setAvatarState } = useAvatar();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { shield, shieldMsLeft } = useLatencyShield(3500);
@@ -75,6 +79,18 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (isListening) {
+      setAvatarState("listening");
+      return;
+    }
+    if (isThinking) {
+      setAvatarState("thinking");
+      return;
+    }
+    setAvatarState("idle");
+  }, [isListening, isThinking, setAvatarState]);
+
   const sendMessage = async (text: string) => {
     if (props.onSendMessage) {
       await props.onSendMessage(text);
@@ -88,6 +104,8 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
     };
     setMessagesInternal((prev) => [...prev, userMessage]);
     openDrawer();
+    setAvatarState("speaking");
+    setIsThinking(true);
 
     try {
       const response = await apiFetch("/api/commands/process", {
@@ -98,6 +116,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
 
       const data = await response.json();
       if (!response.ok) {
+        setAvatarState("alert");
         toast.error("Command failed", {
           description: data?.detail || data?.message || `Error (${response.status})`,
         });
@@ -113,6 +132,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
       };
       setMessagesInternal((prev) => [...prev, aiMessage]);
     } catch {
+      setAvatarState("alert");
       toast.error("Kazumi is offline", {
         description: "Could not reach the backend.",
       });
@@ -202,6 +222,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
           <div className="bg-white rounded-t-lg shadow-2xl w-full max-w-md h-96 flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-2">
+                <KazumiAvatar state={avatarState} size={40} showSpeechVisualizer={false} className="shrink-0" />
                 <MessageSquare className="w-5 h-5 text-blue-600" />
                 <span className="font-bold text-gray-900">
                   Kazumi Chat ({role})

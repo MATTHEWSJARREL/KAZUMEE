@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -186,12 +186,64 @@ def stop_irl_mode(request: Request, db: Session = Depends(get_db)):
     return {"status": "ok", "result": result}
 
 
+@router.post("/fingerprint/record", response_model=None)
+async def record_voice_fingerprint(
+    request: Request,
+    audio: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request, required=True)
+    streamer_id = resolve_streamer_id(request, user)
+    if not streamer_id:
+        raise HTTPException(status_code=400, detail="Streamer not found")
+
+    # Save the audio file temporarily
+    import tempfile
+    import os
+
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+        content = await audio.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        from backend.core.voice_fingerprint import create_voice_fingerprint
+
+        embedding = create_voice_fingerprint(tmp_path)
+
+        if not embedding:
+            raise HTTPException(status_code=422, detail="Could not process audio")
+
+        # Save embedding to database
+        from backend.database.models.streamer_voice_embedding import StreamerVoiceEmbedding
+        import json
+
+        existing = db.query(StreamerVoiceEmbedding).filter(
+            StreamerVoiceEmbedding.streamer_id == streamer_id
+        ).first()
+
+        if existing:
+            existing.embedding = json.dumps(embedding)
+        else:
+            record = StreamerVoiceEmbedding(
+                streamer_id=streamer_id,
+                embedding=json.dumps(embedding),
+            )
+            db.add(record)
+
+        db.commit()
+        return {"status": "ok", "message": "Voice fingerprint saved"}
+    finally:
+        os.unlink(tmp_path)
+
+
 @router.get("/irl/status")
 def get_irl_status(request: Request, db: Session = Depends(get_db)):
     """Get current IRL Safe Mode status."""
     streamer = _require_streamer(request, db)
-    
+
     from backend.core.irl_transcriber import get_irl_status
-    
+
     status = get_irl_status(streamer.id)
     return {"status": "ok", "irl": status}
+

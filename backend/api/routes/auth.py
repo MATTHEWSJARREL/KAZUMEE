@@ -367,9 +367,26 @@ async def register(payload: RegisterRequest, request: Request):
         db.close()
     token = create_session(user.id)
     streamer_id = get_streamer_id_for_user(user)
+
+    # Get onboarding status for streamers
+    onboarding_complete = True
+    if role == "streamer":
+        db2 = SessionLocal()
+        try:
+            streamer = db2.query(StreamerModel).filter(StreamerModel.user_id == user.id).first()
+            if streamer:
+                onboarding_complete = streamer.onboarding_complete or False
+        finally:
+            db2.close()
+
     return {
         "token": token,
-        "user": {"id": user.id, "email": user.email, "role": user.role},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "onboarding_complete": onboarding_complete,
+        },
         "streamer_id": streamer_id,
     }
 
@@ -388,9 +405,26 @@ async def login(payload: LoginRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_session(user.id)
     streamer_id = get_streamer_id_for_user(user)
+
+    # Get onboarding status for streamers
+    onboarding_complete = True
+    if user.role == "streamer":
+        db = SessionLocal()
+        try:
+            streamer = db.query(StreamerModel).filter(StreamerModel.user_id == user.id).first()
+            if streamer:
+                onboarding_complete = streamer.onboarding_complete or False
+        finally:
+            db.close()
+
     return {
         "token": token,
-        "user": {"id": user.id, "email": user.email, "role": user.role},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "onboarding_complete": onboarding_complete,
+        },
         "streamer_id": streamer_id,
     }
 
@@ -406,17 +440,28 @@ async def me(request: Request):
     try:
         _ensure_auth_tables(db)
         email_verified = _get_email_verified(db, user.id)
+
+        onboarding_complete = None
+        if streamer_id is not None:
+            try:
+                streamer = db.query(StreamerModel).filter(StreamerModel.id == streamer_id).first()
+                onboarding_complete = bool(getattr(streamer, "onboarding_complete", False)) if streamer else False
+            except Exception:
+                onboarding_complete = None
     finally:
         db.close()
+
     return {
         "user": {
             "id": user.id,
             "email": user.email,
             "role": user.role,
             "email_verified": email_verified,
+            "onboarding_complete": onboarding_complete,
         },
         "streamer_id": streamer_id,
     }
+
 
 
 @router.post("/role")
@@ -447,7 +492,7 @@ async def update_role(payload: RoleUpdateRequest, request: Request):
 
 
 @router.get("/streamers")
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def list_streamers(
     request: Request,
     q: str | None = Query(default=None),

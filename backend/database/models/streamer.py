@@ -21,5 +21,8 @@ class Streamer(Base):
     subscription_status = Column(String, default="inactive")
     subscription_will_cancel = Column(Boolean, default=False)
     
+    onboarding_complete = Column(Boolean, default=False)
+
     timezone = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+

@@ -88,15 +88,9 @@ export default function ClipManagement() {
     }
   };
 
-  const openClip = async (filePath) => {
+  const openClip = async (clipId) => {
     try {
-      await apiFetch("/clips/open", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ path: filePath })
-      });
+      window.open(`http://127.0.0.1:8000/api/clips/${clipId}/stream`, "_blank");
     } catch (error) {
       console.error("Failed to open clip:", error);
       toast.error("Failed to open clip");
@@ -347,7 +341,7 @@ export default function ClipManagement() {
                       <p className="text-sm text-gray-600 mb-3">{clip.description}</p>
                     )}
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
                     {clip.duration_seconds && (
                       <span>Duration: {clip.duration_seconds}s</span>
                     )}
@@ -377,7 +371,7 @@ export default function ClipManagement() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => openClip(clip.file_path)}
+                      onClick={() => openClip(clip.id)}
                       className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                       title="Preview clip"
                     >
@@ -472,7 +466,7 @@ export default function ClipManagement() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => openClip(clip.file_path)}
+                      onClick={() => openClip(clip.id)}
                       className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                       title="Open clip"
                     >

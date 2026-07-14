@@ -167,6 +167,7 @@ Translate this into ONE of these exact commands:
 
 switch_scene - change OBS scene
 clip_now - save replay buffer as clip
+search_clip - search web for clip/link via keywords
 mute_mic - mute microphone
 unmute_mic - unmute microphone
 start_recording - start OBS recording
@@ -180,7 +181,8 @@ ignore - streamer is talking to chat, not to Zumi
 
 Rules:
 - "clip that" / "save that" / "get that" / "Zumi clip it" = clip_now
-- "go BRB" / "I need a break" / "be right back" = go_brb  
+- "pull the [thing]" / "search for [thing]" / "find me [thing]" / "grab that [thing]" = search_clip
+- "go BRB" / "I need a break" / "be right back" = go_brb
 - "mute" / "kill the mic" / "silence" = mute_mic
 - "unmute" / "mic on" = unmute_mic
 - "switch to [name]" / "go to [name]" / "change to [name]" = switch_scene
@@ -193,7 +195,10 @@ Examples:
 Input: "clip that"
 Output: {{"intent": "clip_now", "params": {{}}, "confidence": 0.95}}
 
-Input: "switch to my face cam"  
+Input: "pull the tiktok of the guy who does backflips over lambos"
+Output: {{"intent": "search_clip", "params": {{"query": "backflips over lambos tiktok"}}, "confidence": 0.88}}
+
+Input: "switch to my face cam"
 Output: {{"intent": "switch_scene", "params": {{"scene": "facecam"}}, "confidence": 0.90}}
 
 Input: "yo go BRB real quick"
@@ -308,6 +313,7 @@ Output: {{"intent": "ignore", "params": {{}}, "confidence": 0.95}}
                 "stop_stream",
                 "go_brb",
                 "clip_now",
+                "search_clip",
             }:
                 # Map Zumi intents to your canonical command names
                 canonical = {
@@ -322,6 +328,7 @@ Output: {{"intent": "ignore", "params": {{}}, "confidence": 0.95}}
                     "stop_stream": "stop_streaming",
                     "go_brb": "switch_scene",
                     "clip_now": "save_replay_buffer",
+                    "search_clip": "search_clip",
                 }.get(intent)
                 if intent == "go_brb":
                     params = {**params, "scene": params.get("scene") or "BRB"}

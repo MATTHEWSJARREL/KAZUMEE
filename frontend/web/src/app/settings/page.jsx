@@ -478,7 +478,8 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-950 text-white' : 'text-black'}`}>
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-[#08070F] text-[#EDE8FF]' : 'text-black'}`}>
+
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="font-medium">Configuring Kazumi Core...</p>
@@ -488,11 +489,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-gray-950 text-white' : 'text-black'} p-6 md:p-10`}>
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#08070F] text-[#EDE8FF]' : 'text-black'} p-6 md:p-10`}>
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-1 flex items-center justify-between">
+      <div className="text-sm text-[#6B6480] mb-1 flex items-center justify-between">
+
         <div>
-          <a href="/" className="hover:text-black">Dashboard</a>
+          <a href="/dashboard" className="hover:text-black">Dashboard</a>
           <span className="mx-1.5 text-gray-300">/</span>
           <span>Settings</span>
         </div>
@@ -508,15 +510,18 @@ export default function SettingsPage() {
         <div className="flex gap-3">
           <button 
             onClick={() => updateSetting("appearance", "darkMode", !isDarkMode)}
-            className={`p-2 rounded-md border ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-black/10 hover:bg-black/5'}`}
+            className={`p-2 rounded-md border ${isDarkMode ? 'border-[#242235] hover:bg-[#1A1828]' : 'border-[#242235] hover:bg-black/5'}`}
           >
+
             {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-600" />}
           </button>
           <button
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 transition-all shadow-lg"
-          >
+                onClick={handleSaveSettings}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-md text-white disabled:opacity-50 transition-all shadow-lg"
+                style={{ background: "linear-gradient(135deg, #7C5CFC, #9060E8)" }}
+              >
+
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? "Syncing..." : "Save Config"}
           </button>
@@ -531,8 +536,10 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sidebar */}
         <div className="lg:col-span-1">
-          <div className={`rounded-xl border ${isDarkMode ? 'border-gray-800 bg-gray-900/50' : 'border-black/10 bg-white'} p-4 sticky top-6`}>
-            <h2 className="text-xs font-bold uppercase text-gray-500 mb-4 px-2">Configuration</h2>
+                <div className={`rounded-xl border ${isDarkMode ? 'border-[#242235] bg-[#1A1828]/50' : 'border-[#242235] bg-[#131120]'} p-4 sticky top-6`}>
+
+            <h2 className="text-xs font-bold uppercase text-[#6B6480] mb-4 px-2">Configuration</h2>
+
             <nav className="space-y-1">
               {[
                 { icon: User, label: "Profile", id: "profile" },
@@ -540,7 +547,7 @@ export default function SettingsPage() {
                 { icon: Mic, label: "Voice Engine", id: "voice" },
                 { icon: Link, label: "Integrations", id: "integrations" },
                 { icon: Shield, label: "Action Policy", id: "policy" },
-                { icon: Shield, label: "Moderation", id: "moderation" },
+
                 { icon: Zap, label: "Automation", id: "automation" },
                 { icon: Brain, label: "Streamer AI", id: "streamer-ai" },
               ].map((item) => (
@@ -562,7 +569,8 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="lg:col-span-2 space-y-8 pb-20">
           {/* Profile */}
-          <div id="profile" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
+          <div id="profile" className={`rounded-xl border ${isDarkMode ? 'border-[#242235]' : 'border-[#242235]'} p-6 bg-[#131120]`}>
+
             <div className="flex items-center gap-3 mb-6">
               <User className="w-5 h-5 text-emerald-500" />
               <h2 className="text-lg font-bold">Profile</h2>
@@ -600,8 +608,9 @@ export default function SettingsPage() {
                   type="text"
                   value={profileUser?.email || ""}
                   disabled
-                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-black/10'} text-gray-500`}
+                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-[#1A1828] border-[#242235]' : 'bg-[#131120] border-[#242235]'} text-[#6B6480]`}
                 />
+
               </div>
               <div>
                 <label className="block text-sm font-semibold mb-2">Role</label>
@@ -609,8 +618,9 @@ export default function SettingsPage() {
                   value={profileUser?.role || "streamer"}
                   onChange={(e) => handleRoleChange(e.target.value)}
                   disabled={roleSaving}
-                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-black/10'}`}
+                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-[#1A1828] border-[#242235]' : 'bg-[#131120] border-[#242235]'}`}
                 >
+
                   <option value="streamer">Streamer</option>
                   <option value="viewer">Viewer</option>
                 </select>
@@ -645,11 +655,12 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={handleSaveSettings}
                 disabled={saving}
-                className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
+                className="px-4 py-2 rounded-md text-white text-sm disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #7C5CFC, #9060E8)" }}
               >
                 {saving ? "Saving..." : "Save Profile"}
               </button>
@@ -659,7 +670,14 @@ export default function SettingsPage() {
               >
                 Log out
               </button>
+              <a
+                href="/onboarding"
+                className="px-4 py-2 border border-purple-300 text-purple-600 rounded-md text-sm"
+              >
+                Re-run Setup Wizard
+              </a>
             </div>
+
           </div>
           
           {/* AI Personality (The Real Logic) */}
@@ -724,22 +742,39 @@ export default function SettingsPage() {
           </div>
 
           {/* Voice Settings */}
-          <div id="voice" className={`rounded-xl border ${isDarkMode ? 'border-gray-800' : 'border-black/10'} p-6 bg-white`}>
+          <div id="voice" className={`rounded-xl border ${isDarkMode ? 'border-[#242235]' : 'border-[#242235]'} p-6 bg-[#131120]`}>
+
             <div className="flex items-center gap-3 mb-6">
               <Mic className="w-5 h-5 text-blue-500" />
               <h2 className="text-lg font-bold">Voice Engine</h2>
             </div>
             <div className="space-y-4">
-              <div>
+                  <div>
                 <label className="block text-sm font-semibold mb-2">Trigger Phrase</label>
+
                 <input
                   type="text"
                   placeholder="e.g., 'Hey Kazumi'"
                   value={settings?.voice?.triggerWord || ""}
                   onChange={(e) => updateSetting("voice", "triggerWord", e.target.value)}
-                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-black/10'}`}
+                  className={`w-full px-4 py-2 rounded-md border ${isDarkMode ? 'bg-[#1A1828] border-[#242235]' : 'bg-[#131120] border-[#242235]'}`}
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">OBS WebSocket Password</label>
+                <input
+                  type="password"
+                  placeholder="Your OBS WebSocket password"
+                  value={settings?.obs?.password || ""}
+                  onChange={(e) => updateSetting("obs", "password", e.target.value)}
+                  className="w-full px-4 py-2 rounded-md border border-[#242235] bg-[#1A1828] text-[#EDE8FF]"
+                />
+                <p className="text-xs text-[#6B6480] mt-1">
+                  Found in OBS → Tools → WebSocket Server Settings
+                </p>
+              </div>
+
               <label className="flex items-center justify-between p-3 rounded-lg border border-dashed border-gray-300">
                 <div className="text-sm font-medium">Continuous Listening</div>
                 <input 
@@ -748,6 +783,7 @@ export default function SettingsPage() {
                   onChange={(e) => updateSetting("voice", "enabled", e.target.checked)}
                 />
               </label>
+
             </div>
           </div>
 

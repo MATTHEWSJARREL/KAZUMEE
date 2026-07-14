@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiFetch } from '@/lib/apiClient';
+import { useRealtime } from '@/lib/realtime';
 
 const ClipSearchContext = createContext({ results: [], setResults: () => {} });
 
 export function ClipSearchProvider({ children }) {
   const [results, setResults] = useState([]);
+  const { subscribeToType } = useRealtime();
 
   useEffect(() => {
     const handler = (ev) => {
@@ -26,55 +27,18 @@ export function ClipSearchProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // connect to backend websocket for real-time events
-    let ws;
-    let cancelled = false;
-
-    const connect = async () => {
+    const unsubscribe = subscribeToType('search_results', (message) => {
       try {
-        const streamTokenRes = await apiFetch('/auth/stream-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        if (!streamTokenRes.ok) return;
-        const tokenData = await streamTokenRes.json();
-        const streamToken = tokenData?.token;
-        if (!streamToken || cancelled) return;
-
-        const url = `ws://${window.location.hostname || '127.0.0.1'}:8000/ws/events?token=${encodeURIComponent(streamToken)}`;
-        ws = new WebSocket(url);
-        ws.onopen = () => console.log('ClipSearch WS connected', url);
-        ws.onmessage = (ev) => {
-          try {
-            const msg = JSON.parse(ev.data);
-            if (msg?.type === 'search_results') {
-              const r = msg.data?.results || [];
-              setResults(r);
-              console.log('Search results received (ws):', r);
-            }
-          } catch (e) {
-            // ignore
-          }
-        };
-        ws.onclose = () => console.log('ClipSearch WS closed');
-        ws.onerror = (err) => console.warn('ClipSearch WS error', err);
-      } catch (e) {
-        console.warn('Failed to connect ClipSearch WS', e);
+        const r = message?.data?.results || [];
+        setResults(r);
+        console.log('Search results received (realtime):', r);
+      } catch (error) {
+        // ignore
       }
-    };
+    });
 
-    void connect();
-
-    return () => {
-      cancelled = true;
-      try {
-        if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-      } catch (e) {
-        /* noop */
-      }
-    };
-  }, []);
+    return () => unsubscribe();
+  }, [subscribeToType]);
 
   return (
     <ClipSearchContext.Provider value={{ results, setResults }}>{children}</ClipSearchContext.Provider>

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -14,6 +15,10 @@ from backend.core.auth import get_current_user
 from backend.core.event_store import insert_stream_event
 
 router = APIRouter()
+
+
+class StreamClipRequest(BaseModel):
+	clip_id: int
 
 
 class OpenClipRequest(BaseModel):
@@ -74,6 +79,52 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 			for clip in clips
 		]
 	}
+
+
+@router.get("/{clip_id}/stream")
+def stream_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
+	"""Stream an approved clip file directly to the browser."""
+	user = get_current_user(request, required=False)
+	# Prefer streamer-only access consistency with /open (original behavior).
+	if not user or user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	clip = db.query(Clip).filter(Clip.id == clip_id).first()
+	if not clip:
+		raise HTTPException(status_code=404, detail="Clip not found")
+	if clip.status != "approved" and clip.status != "pending":
+		raise HTTPException(status_code=404, detail="Clip not available")
+
+	file_path = clip.file_path
+	if not file_path:
+		raise HTTPException(status_code=404, detail="Clip file path missing")
+
+	requested = os.path.abspath(file_path)
+	if not requested.startswith(BASE_CLIPS_DIR):
+		raise HTTPException(status_code=403, detail="Path not allowed")
+	if not os.path.exists(requested):
+		raise HTTPException(status_code=404, detail="File not found")
+
+	mime_type = "video/mp4"
+	ext = os.path.splitext(requested)[1].lower()
+	if ext in {".mkv", ".webm"}:
+		mime_type = "video/webm"
+	elif ext in {".mov", ".qt"}:
+		mime_type = "video/quicktime"
+	elif ext in {".mp4", ".m4v"}:
+		mime_type = "video/mp4"
+	elif ext in {".avi"}:
+		mime_type = "video/x-msvideo"
+
+	def file_iterator(path: str, chunk_size: int = 1024 * 1024):
+		with open(path, "rb") as f:
+			while True:
+				chunk = f.read(chunk_size)
+				if not chunk:
+					break
+				yield chunk
+
+	return StreamingResponse(file_iterator(requested), media_type=mime_type)
 
 
 @router.post("/open")

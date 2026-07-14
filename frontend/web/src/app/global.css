@@ -4,6 +4,7 @@
 
 :root {
   /* ==================== CORE PALETTE ==================== */
+
   --void: #0D0B14;
   --deep: #120F1E;
   --surface: #17142A;
@@ -68,10 +69,18 @@
   --transition-slow: 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
   background:
+
     radial-gradient(1100px 550px at 95% -12%, rgba(124, 92, 252, 0.14), transparent 58%),
     radial-gradient(900px 450px at 8% -24%, rgba(0, 212, 255, 0.10), transparent 56%),
     var(--void);
@@ -1061,4 +1070,106 @@ h1, h2, h3, h4, h5, h6 {
   .viewer-redesign .grid.grid-cols-1.lg\:grid-cols-3 {
     padding-inline: 12px;
   }
+}
+/* =========================================
+   KAZUMEE LANDING PAGE THEME
+========================================= */
+
+:root {
+  --neon-pink: #ff4fd8;
+  --neon-purple: #8b5cf6;
+  --neon-green: #22c55e;
+}
+
+/* Glass cards */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Neon text */
+.text-gradient {
+  background: linear-gradient(
+    90deg,
+    var(--neon-pink),
+    var(--neon-purple)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Neon backgrounds */
+.bg-gradient-neon {
+  background: linear-gradient(
+    90deg,
+    var(--neon-pink),
+    var(--neon-purple)
+  );
+}
+
+/* Pink glow */
+.glow-pink {
+  box-shadow:
+    0 0 30px rgba(255, 79, 216, 0.35),
+    0 0 60px rgba(255, 79, 216, 0.15);
+}
+
+/* Purple glow */
+.glow-purple {
+  box-shadow:
+    0 0 30px rgba(139, 92, 246, 0.35),
+    0 0 60px rgba(139, 92, 246, 0.15);
+}
+
+/* Floating neon blobs */
+.neon-blob-pink {
+  background: rgba(255, 79, 216, 0.25);
+  filter: blur(140px);
+}
+
+.neon-blob-purple {
+  background: rgba(139, 92, 246, 0.25);
+  filter: blur(140px);
+}
+
+/* Subtle grid */
+.bg-grid {
+  background-image:
+    linear-gradient(
+      rgba(255,255,255,0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,0.03) 1px,
+      transparent 1px
+    );
+
+  background-size: 40px 40px;
+}
+
+/* Premium dark background */
+.bg-kazumee {
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(255,79,216,0.12),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(139,92,246,0.12),
+      transparent 35%
+    ),
+    #05060d;
 }

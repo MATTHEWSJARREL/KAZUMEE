@@ -16,3 +16,5 @@ from . import streamer_ai
 from . import director
 from . import ml_training
 from . import billing
+from . import streamer_search
+

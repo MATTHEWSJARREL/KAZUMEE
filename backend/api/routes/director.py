@@ -231,78 +231,9 @@ async def set_hardware_audio_level(payload: AudioLevelRequest, request: Request,
     return {"status": "success", "result": result.data or {"source": payload.source, "db": payload.db}}
 
 
-@router.get("/api/streamer/director/post-stream-report")
-def post_stream_report(request: Request, hours: int = 6, db: Session = Depends(get_db)):
-    streamer = _require_streamer(request, db)
-    lookback = max(1, min(hours, 72))
-    since = datetime.now(timezone.utc) - timedelta(hours=lookback)
+# NOTE: post-stream-report moved to backend/api/routes/post_stream_report.py
+# Keeping this router file focused on legacy director endpoints.
 
-    event_rows = (
-        db.query(StreamEvent)
-        .filter(StreamEvent.streamer_id == streamer.id, StreamEvent.created_at >= since)
-        .order_by(StreamEvent.created_at.asc())
-        .all()
-    )
-    clip_rows = (
-        db.query(Clip)
-        .filter(Clip.streamer_id == streamer.id, Clip.created_at >= since)
-        .order_by(Clip.created_at.asc())
-        .all()
-    )
-    command_rows = (
-        db.query(Command)
-        .filter(Command.streamer_id == streamer.id, Command.created_at >= since)
-        .order_by(Command.created_at.asc())
-        .all()
-    )
-    viewer_action_rows = (
-        db.query(ViewerAction)
-        .filter(ViewerAction.streamer_id == streamer.id, ViewerAction.created_at >= since)
-        .order_by(ViewerAction.created_at.asc())
-        .all()
-    )
-
-    report = streamer_ai_suite.build_post_stream_report(
-        events=[
-            {
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "event_type": row.event_type,
-                "message": row.message,
-            }
-            for row in event_rows
-        ],
-        clips=[
-            {
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "status": row.status,
-            }
-            for row in clip_rows
-        ],
-        commands=[
-            {
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "status": row.status,
-                "intent": row.intent,
-            }
-            for row in command_rows
-        ],
-        viewer_actions=[
-            {
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "action_type": row.action_type,
-                "status": row.status,
-                "cost": row.cost,
-            }
-            for row in viewer_action_rows
-        ],
-    )
-
-    return {
-        "status": "success",
-        "window_hours": lookback,
-        "streamer_id": streamer.id,
-        "report": report,
-    }
 
 
 @router.post("/api/streamer/director/vision-scan")

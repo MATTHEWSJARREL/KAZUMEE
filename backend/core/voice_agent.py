@@ -222,6 +222,7 @@ class VoiceAgentService:
 
                     # CRITICAL: Fingerprint check BEFORE transcription
                     # Verify voice is streamer's voice to avoid wasting Groq API calls on strangers
+                    # During the initial agent warmup we skip fingerprint checks entirely.
                     if streamer_id is not None and not self._verify_streamer_fingerprint(audio, streamer_id, agent_start_time):
 
                         self._append_log("info", "voice_fingerprint_rejected", "Voice fingerprint verification failed")
@@ -240,6 +241,19 @@ class VoiceAgentService:
                     if not command:
                         self._append_log("info", "voice_wakeword_only", "Wake word heard without command")
                         continue
+
+                    # Immediate streamer feedback hook:
+                    # If the voice command is a clipping-related command, notify frontend
+                    # before the backend starts saving to the replay buffer.
+                    try:
+                        cmd_lc = (command or "").lower()
+                        if "save_replay_buffer" in cmd_lc or "replay" in cmd_lc or "clip" in cmd_lc:
+                            asyncio.run_coroutine_threadsafe(
+                                self._command_callback("__notify_clipping__", transcript, {**config, "_notify_only": True}),
+                                self._loop,
+                            )
+                    except Exception:
+                        pass
 
                     try:
                         future = asyncio.run_coroutine_threadsafe(
@@ -278,7 +292,7 @@ class VoiceAgentService:
                     vad_parameters={
                         "min_silence_duration_ms": 600,
                         "speech_pad_ms": 300,
-                        "threshold": 0.5,
+                        "threshold": 0.35,
                     },
                     beam_size=5,
                 )

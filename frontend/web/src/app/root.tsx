@@ -5,6 +5,8 @@ import {
   Scripts,
   ScrollRestoration,
   useLocation,
+  Link,
+  useNavigate,
 } from 'react-router';
 
 import {
@@ -26,6 +28,8 @@ import { Toaster, toast } from 'sonner';
 import { Home } from 'lucide-react';
 import { ClipSearchProvider } from '@/lib/ClipSearchContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
+import { RealtimeProvider } from '@/lib/realtime';
+import { AvatarProvider } from '@/lib/avatar/AvatarContext';
 // @ts-ignore
 import ClipSearchResults from '@/components/ClipSearchResults';
 // @ts-ignore
@@ -34,7 +38,7 @@ import KazumiSidePanel from '@/components/KazumiSidePanel';
 
 import { useObsTruth } from '@/hooks/useObsTruth';
 import KazumiChat from '@/components/KazumiChat';
-import { apiFetch, isAuthBypassEnabled, clearAuthToken, clearActiveStreamerId, clearAuthBypass } from '@/lib/apiClient';
+import { apiFetch, isAuthBypassEnabled, getAuthToken, clearAuthToken, clearActiveStreamerId, clearAuthBypass } from '@/lib/apiClient';
 
 import type { Route } from './+types/root';
 
@@ -115,11 +119,47 @@ function ClientOnly({ children }: { children: ReactNode }) {
 
 function RoleGuard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [role, setRole] = useState<string | null>(null);
   const [streamerId, setStreamerId] = useState<number | null>(null);
   const [checking, setChecking] = useState(true);
+
   useEffect(() => {
-    if (window.location.pathname.startsWith('/auth')) {
+    const path = window.location.pathname;
+    const authToken = getAuthToken();
+
+    // Public paths that don't require session check
+    const publicPaths = ['/', '/auth', '/onboarding', '/landing'];
+    const isPublicPath = publicPaths.some(p => path === p || path.startsWith(p + '/'));
+
+    if (isPublicPath) {
+      // For /auth and /onboarding: if user is already authenticated, redirect them away
+      if ((path.startsWith('/auth') || path.startsWith('/onboarding')) && (getAuthToken() || isAuthBypassEnabled())) {
+        const redirectTo = async () => {
+          const { status, user } = await checkSession();
+          if (status !== 'authenticated' || !user?.role) return;
+          const dest = user.role === 'viewer' ? '/viewer' : '/';
+          if (window.location.pathname !== dest) navigate(dest);
+        };
+        void redirectTo().finally(() => {
+          setChecking(false);
+        });
+        return;
+      }
+
+      // For /: HomePage handles routing based on auth status (landing or dashboard redirect)
+      if (path === '/') {
+        setChecking(false);
+        return;
+      }
+
+      // Other public paths (landing, etc)
+      setChecking(false);
+      return;
+    }
+
+    // Viewer page allows unauthenticated access but shows content based on streamer_id
+    if (path === '/viewer') {
       setChecking(false);
       return;
     }
@@ -130,6 +170,8 @@ function RoleGuard() {
       setChecking(false);
       return;
     }
+
+    // Protected routes: require authentication
     setChecking(true);
     checkSession()
       .then(({ status, user, streamerId: activeStreamerId }) => {
@@ -139,13 +181,14 @@ function RoleGuard() {
           clearAuthBypass();
           sessionStorage.setItem("kazumi_session_expired", "true");
           toast.error("Session expired. Please sign in again.");
-          window.location.href = '/auth';
+          navigate('/auth');
           return;
         }
         if (status === "error") {
           setChecking(false);
           return;
         }
+
         const userRole = user?.role || null;
         if (!userRole) {
           clearAuthToken();
@@ -153,15 +196,16 @@ function RoleGuard() {
           clearAuthBypass();
           sessionStorage.setItem("kazumi_session_expired", "true");
           toast.error("Session expired. Please sign in again.");
-          window.location.href = '/auth';
+          navigate('/auth');
           return;
         }
+
         setRole(userRole);
         setStreamerId(activeStreamerId);
-        const path = window.location.pathname;
+
         const viewerOnly = ['/viewer'];
-        const streamerOnly = [
-          '/',
+        const protectedStreamerRoutes = [
+          '/dashboard',
           '/stream-health',
           '/clips',
           '/moderation',
@@ -172,14 +216,13 @@ function RoleGuard() {
           '/settings',
         ];
 
-        if (userRole === 'viewer') {
-          if (streamerOnly.includes(path)) {
-            window.location.href = '/viewer';
-          }
+        if (userRole === 'viewer' && protectedStreamerRoutes.includes(path)) {
+          if (path !== '/viewer') navigate('/viewer');
         }
         if (userRole === 'streamer' && viewerOnly.includes(path)) {
-          window.location.href = '/';
+          navigate('/');
         }
+
         setChecking(false);
       })
       .catch(() => {
@@ -206,16 +249,97 @@ function RoleGuard() {
   );
 }
 
+
+function OnboardingBanner() {
+  const [showBanner, setShowBanner] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      // Only check if authenticated
+      if (!getAuthToken()) {
+        setShowBanner(false);
+        return;
+      }
+
+      // Don't show on auth, onboarding, or landing pages
+      const path = window.location.pathname;
+      if (path.startsWith('/auth') || path.startsWith('/onboarding') || path === '/') {
+        setShowBanner(false);
+        return;
+      }
+
+      try {
+        const res = await apiFetch("/auth/me");
+        if (!res.ok) {
+          setShowBanner(false);
+          return;
+        }
+        const data = await res.json();
+
+        // Only show for streamers with incomplete onboarding
+        if (data?.user?.role === 'streamer' && !data?.user?.onboarding_complete) {
+          setShowBanner(true);
+        } else {
+          setShowBanner(false);
+        }
+      } catch {
+        setShowBanner(false);
+      }
+    };
+
+    checkOnboarding();
+  }, []);
+
+  if (!showBanner) return null;
+
+  return (
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-md">
+      <div className="mx-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg shadow-md flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="text-blue-600">ℹ️</div>
+          <div>
+            <p className="text-sm font-medium text-blue-900">Complete your setup</p>
+            <p className="text-xs text-blue-800">Finish the 4-step onboarding to unlock all features</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowBanner(false);
+              navigate('/onboarding', { replace: false });
+            }}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-100"
+          >
+            Continue →
+          </button>
+          <button
+            onClick={() => setShowBanner(false)}
+            className="text-blue-400 hover:text-blue-600 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GlobalExperience() {
   const isAuthRoute =
     typeof window !== 'undefined' && window.location.pathname.startsWith('/auth');
+  const isOnboarding =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/onboarding");
+  const isLandingRoute =
+    typeof window !== "undefined" && window.location.pathname === "/";
 
-  if (isAuthRoute) {
+  if (isAuthRoute || isOnboarding || isLandingRoute) {
     return <Toaster position="bottom-right" />;
   }
 
   return (
     <>
+      <OnboardingBanner />
       <ClipSearchResults />
       <Toaster position="bottom-right" />
       <KazumiChat />
@@ -244,13 +368,17 @@ export function Layout({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ClientOnly>
             <SettingsProvider>
-              <ClipSearchProvider>
-                <ErrorBoundaryWrapper>
-                  <RoleGuard />
-                  {children}
-                </ErrorBoundaryWrapper>
-                <GlobalExperience />
-              </ClipSearchProvider>
+              <AvatarProvider>
+                <RealtimeProvider>
+                  <ClipSearchProvider>
+                    <ErrorBoundaryWrapper>
+                      <RoleGuard />
+                      {children}
+                    </ErrorBoundaryWrapper>
+                    <GlobalExperience />
+                  </ClipSearchProvider>
+                </RealtimeProvider>
+              </AvatarProvider>
             </SettingsProvider>
           </ClientOnly>
         </QueryClientProvider>
@@ -269,6 +397,11 @@ export default function App() {
   const location = useLocation();
   const isAuthRoute =
     typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
+  const isOnboarding =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/onboarding");
+  const isLandingRoute =
+    typeof window !== "undefined" && window.location.pathname === "/";
+
   const [authUser, setAuthUser] = useState<any>(null);
   const [hasSession, setHasSession] = useState<boolean>(false);
   const [sessionState, setSessionState] = useState<"checking" | "authenticated" | "unauthenticated">(
@@ -368,6 +501,8 @@ export default function App() {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
+  const navigate = useNavigate();
+
   const handleLogout = () => {
     clearAuthToken();
     clearActiveStreamerId();
@@ -375,10 +510,10 @@ export default function App() {
     setAuthUser(null);
     setHasSession(false);
     setSessionState("unauthenticated");
-    window.location.href = '/auth';
+    navigate('/auth');
   };
 
-  if (isAuthRoute) {
+  if (isAuthRoute || isOnboarding || isLandingRoute) {
     return (
       <div className="flex flex-col min-h-screen">
         <main className="flex-1">
@@ -419,14 +554,14 @@ export default function App() {
             <div className="text-xs text-gray-600">Viewer mode active</div>
           )}
           <div className="flex items-center gap-2 text-xs" ref={menuRef}>
-            {authUser?.role === "streamer" && location.pathname !== "/" && (
-              <a
-                href="/"
+            {authUser?.role === "streamer" && location.pathname !== "/dashboard" && (
+              <Link
+                to="/dashboard"
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
               >
                 <Home className="w-4 h-4" />
                 <span className="hidden sm:inline">Home</span>
-              </a>
+              </Link>
             )}
             <button
               onClick={() => setAssistantOpen(true)}
@@ -447,18 +582,18 @@ export default function App() {
                 </button>
                 {menuOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
-                    <a
-                      href="/settings#profile"
+                    <Link
+                      to="/settings#profile"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
                       Profile
-                    </a>
-                    <a
-                      href="/settings"
+                    </Link>
+                    <Link
+                      to="/settings"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
                       Settings
-                    </a>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -476,12 +611,12 @@ export default function App() {
                 Sign out
               </button>
             ) : (
-              <a
-                href="/auth"
+              <Link
+                to="/auth"
                 className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
               >
                 Sign in
-              </a>
+              </Link>
             )}
           </div>
         </div>

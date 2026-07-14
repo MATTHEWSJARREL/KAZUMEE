@@ -125,9 +125,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings]);
 
   const refreshSettings = async () => {
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth")) {
-      return;
+    // Skip for unauthenticated users or on auth pages
+    if (typeof window !== "undefined") {
+      const isAuthPage = window.location.pathname.startsWith("/auth");
+      const isOnboarding = window.location.pathname.startsWith("/onboarding");
+      const isLanding = window.location.pathname === "/";
+
+      // Don't fetch settings on auth, onboarding, or landing pages
+      if (isAuthPage || isOnboarding || isLanding) {
+        return;
+      }
     }
+
     try {
       const res = await apiFetch("/api/settings");
       if (!res.ok) return;
@@ -139,8 +148,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth")) {
-      return;
+    // Skip for unauthenticated users or on auth pages
+    if (typeof window !== "undefined") {
+      const isAuthPage = window.location.pathname.startsWith("/auth");
+      const isOnboarding = window.location.pathname.startsWith("/onboarding");
+      const isLanding = window.location.pathname === "/";
+
+      // Don't fetch settings on auth, onboarding, or landing pages
+      if (isAuthPage || isOnboarding || isLanding) {
+        return;
+      }
     }
     refreshSettings();
   }, []);

@@ -115,11 +115,22 @@ class BrainDecider:
                 if any(token in text for token in ("mic", "mute", "audio")):
                     return BrainDecision("toggle_mic", "execute", BrainAction.MUTE_MIC, "Toggling mic state", 0.85)
 
-        # 4. CLIPPING
+        # 4. SEARCH/WEB LOOKUP
+        if any(phrase in text for phrase in ["pull", "search", "find", "grab", "get me", "show me"]):
+            if not any(phrase in text for phrase in ["pull chat", "search chat", "pull stream"]):  # Avoid false positives
+                # Extract the search query (everything after the action word)
+                query = text
+                for trigger in ["pull", "search", "find", "grab", "get me", "show me"]:
+                    if trigger in text:
+                        query = text.split(trigger, 1)[-1].strip()
+                        break
+                return BrainDecision("search", "execute", BrainAction.SEARCH_CLIP, f"Searching for: {query}", 0.85, {"query": query})
+
+        # 5. CLIPPING
         if any(phrase in text for phrase in ["clip that", "save that", "capture that"]):
             return BrainDecision("clip", "execute", BrainAction.SAVE_REPLAY_BUFFER, "Saving clip", 0.95)
 
-        # 5. PANIC/SAFETY MODE
+        # 6. PANIC/SAFETY MODE
         if any(phrase in text for phrase in ["shields up", "panic", "tos", "emergency"]):
             return BrainDecision("panic", "execute", BrainAction.PANIC_MODE, "Emergency mode activated", 1.0)
 
