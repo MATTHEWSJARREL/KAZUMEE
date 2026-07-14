@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import "../auth.css";
+import { AuthSocialProof, AuthErrorMessage, AuthSuccessMessage } from "@/components/auth/AuthSocialProof";
 import {
   apiFetch,
   setAuthToken,
@@ -470,11 +471,12 @@ export default function AuthPage() {
                 </button>
               </div>
               <div className="overlay-panel overlay-right">
-                <h1>New to Kazumi?</h1>
+                <h1>Join Kazumi</h1>
                 <p>
-                  Create an account to get started with smart streaming, clip management, and AI-powered broadcast control.
+                  Create an account to get started with smart streaming.
                 </p>
-                <button type="button" className="ghost" onClick={() => setMode("register")}>
+                <AuthSocialProof />
+                <button type="button" className="ghost" onClick={() => setMode("register")} style={{marginTop: "24px"}}>
                   Create Account
                 </button>
               </div>

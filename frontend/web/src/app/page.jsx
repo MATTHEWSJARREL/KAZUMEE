@@ -86,6 +86,11 @@ import AIApprovalDashboard from "../components/AIApprovalDashboard";
 import ClipManagement from "../components/ClipManagement";
 import ObsStatus from "../components/ObsStatus";
 import KazumiChat from "../components/KazumiChat";
+import KazumiAvatarPremium from "../components/avatar/KazumiAvatarPremium";
+import {
+  DashboardHeroCard,
+  DashboardStatusBadge,
+} from "../components/dashboard/DashboardSections";
 import { useObsTruth } from "../hooks/useObsTruth";
 import { usePanicMode } from "../hooks/usePanicMode";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -1225,13 +1230,9 @@ function KazumiDashboard() {
         <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <img
-                src="/logo.png"
-                alt="Kazumi"
-                className="w-12 h-12 md:w-14 md:h-14 rounded-lg object-contain bg-white/5 p-2"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
+              <KazumiAvatarPremium
+                status={obsState?.connected ? "online" : "offline"}
+                size="lg"
               />
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white">Kazumi AI</h1>
@@ -1280,20 +1281,17 @@ function KazumiDashboard() {
           </div>
 
           {/* OBS STATUS BAR */}
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-300">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              OBS Connected
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
-              {dashboardData?.streaming ? "🔴 Streaming" : "Streaming Off"}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
-              {dashboardData?.recording ? "🔴 Recording" : "Recording Off"}
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <DashboardStatusBadge status="online" label="OBS Connected" />
+            {dashboardData?.streaming && (
+              <DashboardStatusBadge status="streaming" label="🔴 Streaming" />
+            )}
+            {dashboardData?.recording && (
+              <DashboardStatusBadge status="recording" label="🔴 Recording" />
+            )}
             {dashboardData?.currentScene && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
-                Scene: <span className="font-semibold text-white">{dashboardData.currentScene}</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-gray-300 text-xs font-semibold">
+                Scene: <span className="font-bold text-white">{dashboardData.currentScene}</span>
               </div>
             )}
           </div>

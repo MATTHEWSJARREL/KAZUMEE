@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/apiClient";
 import { useLatencyShield } from "@/hooks/useLatencyShield";
 import { useSettings } from "@/lib/SettingsContext";
 import { useAvatar } from "@/lib/avatar/useAvatar";
+import { useKazumiResponse } from "@/lib/KazumiResponseContext";
 import KazumiAvatar from "./avatar/KazumiAvatar";
 
 type ChatMessage = {
@@ -53,6 +54,7 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { shield, shieldMsLeft } = useLatencyShield(3500);
   const { settings } = useSettings();
+  const { showAnswer } = useKazumiResponse();
   const voiceEnabled = settings?.voice?.enabled ?? true;
   const useGroq = settings?.ai?.useGroq ?? true;
 
@@ -131,6 +133,8 @@ export default function KazumiChat(props: KazumiChatProps = {}) {
         timestamp: new Date().toISOString(),
       };
       setMessagesInternal((prev) => [...prev, aiMessage]);
+      // Show response as floating card for immediate visibility
+      showAnswer(data.message || "I heard you, but I'm not sure what to do.");
     } catch {
       setAvatarState("alert");
       toast.error("Kazumi is offline", {

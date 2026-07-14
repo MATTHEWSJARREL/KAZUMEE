@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import ClipsFilterSidebar from "@/components/clips/ClipsFilterSidebar";
 import {
   Scissors,
   Play,
@@ -24,6 +25,12 @@ export default function ClipsLibraryPage() {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAiSearching, setIsAiSearching] = useState(false);
+  const [filters, setFilters] = useState({
+    type: "all",
+    performance: "all",
+    dateRange: "all",
+    platforms: [],
+  });
 
   useEffect(() => {
     fetchClips();
@@ -110,7 +117,7 @@ export default function ClipsLibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
       {/* Header */}
       <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -127,7 +134,14 @@ export default function ClipsLibraryPage() {
         </a>
       </div>
 
-      <div className="p-6 md:p-10">
+      {/* Main Content with Filter Sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        <ClipsFilterSidebar
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+
+        <div className="flex-1 overflow-y-auto p-6 md:p-10">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
         <div>
           <h1 className="text-4xl font-black tracking-tight">Your Clips</h1>
@@ -217,6 +231,7 @@ export default function ClipsLibraryPage() {
           <p className="text-gray-400 text-lg">No clips yet. Start clipping moments to see them here!</p>
         </div>
       )}
+        </div>
       </div>
     </div>
   );
