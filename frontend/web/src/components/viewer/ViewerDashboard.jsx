@@ -786,18 +786,23 @@ export default function ViewerModePage() {
   const runCatchupRecap = async (mode = "quick") => {
     try {
       setCatchupLoading(true);
-      const res = await apiFetch(`/api/viewer/catchup/recap?mode=${mode}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        pushFeedback("denied", formatApiError(data, "Recap failed."), "catchup recap");
-        return;
-      }
-      setCatchupRecap(data);
-      setHasUsedCatchUp(true);
-      setCatchUpNudgeDismissed(true);
-      setCatchUpNudgeVisible(false);
-      await fetchCatchupHighlights({ openModal: false, silent: true });
-      pushFeedback("approved", "Recap ready.", "catchup recap");
+      // Endpoint not implemented yet - provide fallback message
+      pushFeedback("info", "Recap feature coming soon!", "catchup recap");
+      return;
+
+      // Original code (commented out until backend endpoint is ready):
+      // const res = await apiFetch(`/api/viewer/catchup/recap?mode=${mode}`);
+      // const data = await res.json().catch(() => ({}));
+      // if (!res.ok) {
+      //   pushFeedback("denied", formatApiError(data, "Recap failed."), "catchup recap");
+      //   return;
+      // }
+      // setCatchupRecap(data);
+      // setHasUsedCatchUp(true);
+      // setCatchUpNudgeDismissed(true);
+      // setCatchUpNudgeVisible(false);
+      // await fetchCatchupHighlights({ openModal: false, silent: true });
+      // pushFeedback("approved", "Recap ready.", "catchup recap");
     } catch (error) {
       console.error("Catchup recap error:", error);
       pushFeedback("denied", "Recap failed.", "network error");
