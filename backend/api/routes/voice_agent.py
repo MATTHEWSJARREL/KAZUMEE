@@ -207,11 +207,15 @@ async def record_voice_fingerprint(
         tmp_path = tmp.name
 
     try:
-        from backend.core.voice_fingerprint import create_voice_fingerprint
+        from backend.core.voice_fingerprint import generate_embedding
 
-        embedding = create_voice_fingerprint(tmp_path)
+        # Read audio file and generate embedding
+        with open(tmp_path, "rb") as f:
+            audio_data = f.read()
 
-        if not embedding:
+        embedding = generate_embedding(audio_data)
+
+        if embedding is None:
             raise HTTPException(status_code=422, detail="Could not process audio")
 
         # Save embedding to database
