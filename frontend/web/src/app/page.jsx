@@ -99,7 +99,7 @@ import { usePanicMode } from "../hooks/usePanicMode";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useSettings } from "../lib/SettingsContext";
 import { toast } from "sonner";
-import { getActiveStreamerId, isAuthBypassEnabled, setActiveStreamerId } from "@/lib/apiClient";
+import { getActiveStreamerId, isAuthBypassEnabled, setActiveStreamerId, clearAuthToken, clearActiveStreamerId } from "@/lib/apiClient";
 import { API_BASE } from "../config";
 import {
   Home, Radio, Scissors, Shield, Users, Settings, TrendingUp, Mic, Bot,
@@ -201,6 +201,7 @@ function KazumiDashboard() {
   const [clipNowBusy, setClipNowBusy] = useState(false);
   const [clipPulse, setClipPulse] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [postStreamReport, setPostStreamReport] = useState(null);
   const [postStreamGenerating, setPostStreamGenerating] = useState(false);
   const [obsSources, setObsSources] = useState([]);
@@ -1245,9 +1246,44 @@ function KazumiDashboard() {
                 <p className="text-sm text-gray-400">Stream Director & Command Center</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-white">{authUser?.email || "Streamer"}</p>
-              <p className="text-xs text-gray-500 capitalize">{userRole || "guest"}</p>
+            <div className="text-right relative">
+              <button
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="text-sm font-semibold text-white hover:text-gray-200 transition-colors text-right"
+              >
+                <p className="text-sm font-semibold text-white">{authUser?.email || "Streamer"}</p>
+                <p className="text-xs text-gray-500 capitalize">{userRole || "guest"}</p>
+              </button>
+
+              {/* Profile Dropdown Menu */}
+              {profileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-slate-800 border border-white/10 rounded-lg shadow-xl z-50">
+                  <a
+                    href="/settings"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 first:rounded-t-lg"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    Profile
+                  </a>
+                  <a
+                    href="/settings"
+                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    Settings
+                  </a>
+                  <button
+                    onClick={() => {
+                      clearAuthToken();
+                      clearActiveStreamerId();
+                      window.location.href = "/auth";
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/10 last:rounded-b-lg"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
