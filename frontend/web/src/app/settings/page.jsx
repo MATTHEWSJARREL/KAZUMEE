@@ -553,7 +553,7 @@ export default function SettingsPage() {
               className={`w-full mb-4 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                 showAdvanced
                   ? 'bg-purple-600 text-white'
-                  : `${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`
+                  : `${isDarkMode ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
               }`}
             >
               {showAdvanced ? '↑ Basic Settings' : '↓ Show Advanced'}

@@ -85,6 +85,7 @@ export default function HomePage() {
 import AIApprovalDashboard from "../components/AIApprovalDashboard";
 import ClipManagement from "../components/ClipManagement";
 import ObsStatus from "../components/ObsStatus";
+import KazumiChat from "../components/KazumiChat";
 import { useObsTruth } from "../hooks/useObsTruth";
 import { usePanicMode } from "../hooks/usePanicMode";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -1574,33 +1575,6 @@ function KazumiDashboard() {
           </div>
         )}
 
-        {/* Stream Metrics Chart */}
-        <div className="kazumi-card p-6 mb-8">
-          <div className="flex items-center gap-6 mb-6">
-            <div className="w-[52px] h-[52px] border border-black/10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white">
-              <BarChart2 className="w-6 h-6" strokeWidth={1.5} />
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Current Scene</div>
-              <div className="text-[28px] font-semibold leading-none">
-                {obsState?.scene || "Unknown"}
-              </div>
-            </div>
-          </div>
-
-          <div className="h-56 w-full mb-4">
-            <svg className="w-full h-full" viewBox="0 0 800 200">
-              <path
-                d="M 50 120 L 150 100 L 250 80 L 350 90 L 450 70 L 550 85 L 650 60 L 750 75"
-                stroke="#000000"
-                strokeWidth="2"
-                fill="none"
-              />
-              <circle cx="750" cy="75" r="4" fill="#000000" />
-            </svg>
-          </div>
-        </div>
-        
         {/* --- NEW: AI APPROVAL SECTION --- */}
         <div className="mb-8">
           <AIApprovalDashboard />
@@ -2072,6 +2046,7 @@ function KazumiDashboard() {
         )}
 
         {/* Kazumi Chat Drawer */}
+        <KazumiChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       </div>
       </div>
 
