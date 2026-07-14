@@ -16,6 +16,14 @@ export default function HomePage() {
 
   useEffect(() => {
     const checkAuthAndRoute = async () => {
+      // Skip auth check if we're on onboarding, auth, or settings pages
+      // to prevent redirect loops
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+      if (pathname.startsWith("/onboarding") || pathname.startsWith("/auth") || pathname.startsWith("/settings")) {
+        setShowLoading(false);
+        return;
+      }
+
       // Check /auth/me with session credentials included
       // This persists auth across page refreshes via session cookie
       try {
@@ -40,6 +48,7 @@ export default function HomePage() {
           if (onboardingComplete === false) {
             setShowLoading(false);
             navigate("/onboarding", { replace: true });
+            return;
           } else {
             // Onboarding complete = show dashboard
             setShowDashboard(true);
