@@ -464,6 +464,105 @@
   color: var(--streamer-text-secondary);
 }
 
+/* ========== ADDITIONAL UTILITIES ========== */
+.streamer-badge.success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--streamer-success);
+  color: var(--streamer-success);
+}
+
+.streamer-badge.error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--streamer-error);
+  color: var(--streamer-error);
+}
+
+.streamer-badge.warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--streamer-warning);
+  color: var(--streamer-warning);
+}
+
+.streamer-badge.info {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+/* Grid layouts */
+.streamer-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.streamer-grid-2 {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 768px) {
+  .streamer-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Section headers */
+.streamer-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--streamer-border);
+}
+
+.streamer-section-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Empty states */
+.streamer-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--streamer-text-muted);
+}
+
+.streamer-empty-state p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+/* Loading states */
+.streamer-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 8px;
+  color: var(--streamer-text-secondary);
+}
+
+.streamer-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--streamer-accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
   .streamer-dashboard {
