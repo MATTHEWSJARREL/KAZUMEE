@@ -64,7 +64,7 @@ from backend.core.ingestion import ingestion_loop
 from backend.core.search import search_links, format_links_for_chat
 from backend.core.policy import evaluate_action
 from backend.core.pricing import limit_violation
-from backend.core.voice_agent import VoiceAgentService
+# Removed: voice_agent (v1.1+ feature, requires speech_recognition library)
 from backend.core.rate_limiter import limiter
 from backend.core.event_bus import init_event_bus, get_event_bus
 
