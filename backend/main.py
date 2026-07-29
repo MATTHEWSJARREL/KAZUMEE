@@ -10,7 +10,6 @@ from datetime import datetime
 from datetime import timedelta
 from groq import Groq, AsyncGroq
 from sqlalchemy import text, func
-import psutil
 from typing import Optional, List, Dict, Any
 from collections import defaultdict, deque
 import time
@@ -1100,9 +1099,9 @@ async def get_analytics(request: Request, range: str = "7d"):
 # --------------------------------------------------
 @app.get("/api/stream-health")
 async def get_stream_health(request: Request):
-    # Local machine baseline
-    system_cpu = psutil.cpu_percent(interval=0.15)
-    system_mem = psutil.virtual_memory().percent
+    # Local machine baseline (TODO: add real monitoring in v1.1)
+    system_cpu = 0.0
+    system_mem = 0.0
 
     executor = getattr(request.app.state, "executor", None)
     obs_status = {"connected": False, "streaming": False, "recording": False}
@@ -1891,8 +1890,8 @@ async def get_main_dashboard(request: Request):
             obs_stats = {}
 
     obs_connected = bool(obs_status.get("connected", False))
-    cpu_usage = float(obs_stats.get("cpu_usage") or psutil.cpu_percent(interval=0.05))
-    mem_usage = float(obs_stats.get("memory_usage") or psutil.virtual_memory().percent)
+    cpu_usage = float(obs_stats.get("cpu_usage") or 0.0)
+    mem_usage = float(obs_stats.get("memory_usage") or 0.0)
     dropped_frames = int(obs_stats.get("dropped_frames") or 0)
     bitrate_kbps = float(obs_stats.get("bitrate") or 0.0)
 
