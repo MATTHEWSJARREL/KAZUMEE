@@ -44,14 +44,13 @@ class CommandService:
             "moderation_auto_action",
         }
         
-        # Phase 1: Initialize Groq Client
-        # Validate GROQ_API_KEY at startup and fail fast
+        # Phase 1: Initialize Groq Client (optional for V1 MVP)
         api_key = os.environ.get("GROQ_API_KEY", "").strip()
-        if not api_key:
-            error_msg = "GROQ_API_KEY environment variable is not set or is empty. Please configure it before starting the service."
-            self.log.error(error_msg)
-            sys.exit(error_msg)
-        self.ai_client = Groq(api_key=api_key)
+        if api_key:
+            self.ai_client = Groq(api_key=api_key)
+        else:
+            self.log.warning("GROQ_API_KEY not set - AI commands will be limited")
+            self.ai_client = None
 
     async def handle(self, request: CommandRequest):
         try:
