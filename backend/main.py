@@ -501,10 +501,7 @@ async def lifespan(app: FastAPI):
             )
             return failure
 
-    app.state.voice_agent = VoiceAgentService(
-        loop=asyncio.get_running_loop(),
-        command_callback=_voice_agent_command_callback,
-    )
+    # Disabled for V1 MVP: app.state.voice_agent = VoiceAgentService(...)
 
     # Initialize streamer mode (defaults to True for security)
     app.state.streamer_mode = True
