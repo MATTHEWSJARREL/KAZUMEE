@@ -32,13 +32,9 @@ import { RealtimeProvider } from '@/lib/realtime';
 import { AvatarProvider } from '@/lib/avatar/AvatarContext';
 import { KazumiResponseProvider } from '@/lib/KazumiResponseContext';
 // @ts-ignore
-import ClipSearchResults from '@/components/ClipSearchResults';
 // @ts-ignore
-import ObsStatus from '@/components/ObsStatus';
-import KazumiSidePanel from '@/components/KazumiSidePanel';
 
 import { useObsTruth } from '@/hooks/useObsTruth';
-import KazumiChat from '@/components/KazumiChat';
 import { apiFetch, isAuthBypassEnabled, getAuthToken, clearAuthToken, clearActiveStreamerId, clearAuthBypass } from '@/lib/apiClient';
 
 import type { Route } from './+types/root';
@@ -134,18 +130,18 @@ function RoleGuard() {
     const isPublicPath = publicPaths.some(p => path === p || path.startsWith(p + '/'));
 
     if (isPublicPath) {
-      // For /auth: if user is already authenticated, redirect them away
-      // For /onboarding: only redirect if onboarding is COMPLETE
-      if ((path.startsWith('/auth') || path.startsWith('/onboarding')) && (getAuthToken() || isAuthBypassEnabled())) {
+      // /auth is a public page - let it load without checking session
+      if (path.startsWith('/auth')) {
+        setChecking(false);
+        return;
+      }
+
+      // For /onboarding: only redirect if onboarding is COMPLETE and user is authenticated via API
+      if (path.startsWith('/onboarding') && (getAuthToken() || isAuthBypassEnabled())) {
         const redirectTo = async () => {
           const { status, user } = await checkSession();
           if (status !== 'authenticated' || !user?.role) return;
-
-          // If on /onboarding, only redirect if onboarding is complete
-          if (path.startsWith('/onboarding')) {
-            if (user.onboarding_complete !== true) return; // Stay on onboarding
-          }
-
+          if (user.onboarding_complete !== true) return; // Stay on onboarding
           const dest = user.role === 'viewer' ? '/viewer' : '/';
           if (window.location.pathname !== dest) navigate(dest);
         };
@@ -347,10 +343,8 @@ function GlobalExperience() {
 
   return (
     <>
-      <OnboardingBanner />
-      <ClipSearchResults />
+      
       <Toaster position="bottom-right" />
-      <KazumiChat />
     </>
   );
 }
@@ -384,7 +378,7 @@ export function Layout({ children }: { children: ReactNode }) {
                         <RoleGuard />
                         {children}
                       </ErrorBoundaryWrapper>
-                      <GlobalExperience />
+                      
                     </ClipSearchProvider>
                   </RealtimeProvider>
                 </AvatarProvider>
@@ -418,7 +412,7 @@ export default function App() {
     "checking",
   );
   const [menuOpen, setMenuOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(false);
+
   const [backendStatus, setBackendStatus] = useState<"unknown" | "online" | "degraded" | "offline">("unknown");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const showObs = !isAuthRoute && (isAuthBypassEnabled() || authUser?.role === "streamer");
@@ -533,115 +527,111 @@ export default function App() {
     );
   }
 
+  const isDashboard = location.pathname === '/dashboard';
+
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Global OBS truth bar */}
-      <div className="border-b px-4 py-2 bg-white sticky top-0 z-50">
-        {!isAuthBypassEnabled() && sessionState === "unauthenticated" && (
-          <div className="mb-2 px-3 py-2 rounded-md text-xs bg-yellow-100 text-yellow-800">
-            You are signed out. Sign in to enable live actions.
-          </div>
-        )}
-        {backendStatus !== "online" && backendStatus !== "unknown" && (
-          <div className={`mb-2 px-3 py-2 rounded-md text-xs ${
-            backendStatus === "degraded"
-              ? "bg-yellow-100 text-yellow-800"
-              : "bg-red-100 text-red-700"
-          }`}>
-            {backendStatus === "degraded"
-              ? "Backend is degraded. Some features may be delayed."
-              : (!isAuthBypassEnabled() && !hasSession)
-                ? "Backend status unknown while signed out. Sign in, then retry."
-                : "Backend is offline. Live actions are unavailable."}
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-4">
-          {showObs ? (
-            <ObsStatus state={state} />
-          ) : sessionState === "checking" ? (
-            <div className="text-xs text-gray-600">Checking session...</div>
-          ) : (
-            <div className="text-xs text-gray-600">Viewer mode active</div>
+      {!isDashboard && (
+        <div className="border-b px-4 py-2 bg-white sticky top-0 z-50">
+          {!isAuthBypassEnabled() && sessionState === "unauthenticated" && (
+            <div className="mb-2 px-3 py-2 rounded-md text-xs bg-yellow-100 text-yellow-800">
+              You are signed out. Sign in to enable live actions.
+            </div>
           )}
-          <div className="flex items-center gap-2 text-xs" ref={menuRef}>
-            {authUser?.role === "streamer" && location.pathname !== "/dashboard" && (
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
-            )}
-            <button
-              onClick={() => setAssistantOpen(true)}
-              className="hidden sm:inline-flex px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              Ask Kazumi
-            </button>
-            {authUser ? (
-              <div className="relative">
-                <button
-                  onClick={() => setMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50"
-                >
-                  <span className="w-7 h-7 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center">
-                    {authUser.email?.slice(0, 2)?.toUpperCase() || "KU"}
-                  </span>
-                  <span className="hidden md:inline text-gray-600">{authUser.email}</span>
-                </button>
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
-                    <Link
-                      to="/settings#profile"
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      to="/settings"
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      Settings
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      Log out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : hasSession ? (
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
-                Sign out
-              </button>
+          {backendStatus !== "online" && backendStatus !== "unknown" && (
+            <div className={`mb-2 px-3 py-2 rounded-md text-xs ${
+              backendStatus === "degraded"
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-red-100 text-red-700"
+            }`}>
+              {backendStatus === "degraded"
+                ? "Backend is degraded. Some features may be delayed."
+                : (!isAuthBypassEnabled() && !hasSession)
+                  ? "Backend status unknown while signed out. Sign in, then retry."
+                  : "Backend is offline. Live actions are unavailable."}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            {showObs ? null : sessionState === "checking" ? (
+              <div className="text-xs text-gray-600">Checking session...</div>
             ) : (
-              <Link
-                to="/auth"
-                className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
-              >
-                Sign in
-              </Link>
+              <div className="text-xs text-gray-600">Viewer mode active</div>
             )}
+            <div className="flex items-center gap-2 text-xs" ref={menuRef}>
+              {authUser?.role === "streamer" && location.pathname !== "/dashboard" && (
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  <Home className="w-4 h-4" />
+                  <span className="hidden sm:inline">Home</span>
+                </Link>
+              )}
+
+              {authUser ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center">
+                      {authUser.email?.slice(0, 2)?.toUpperCase() || "KU"}
+                    </span>
+                    <span className="hidden md:inline text-gray-600">{authUser.email}</span>
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                      <Link
+                        to="/settings#profile"
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        to="/settings"
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Settings
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : hasSession ? (
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Sign out
+                </button>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <main className="flex-1">
         <Outlet context={{ obsState: state }} />
       </main>
 
-      <KazumiSidePanel
-        open={assistantOpen}
-        onClose={() => setAssistantOpen(false)}
-        userKey={authUser?.email || null}
-        role={authUser?.role || null}
-      />
+
     </div>
   );
 }
+
+
+
+
+

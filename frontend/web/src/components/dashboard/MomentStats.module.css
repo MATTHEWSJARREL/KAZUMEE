@@ -1,0 +1,89 @@
+﻿.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: 24px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--glass-border-hover);
+}
+
+.cardTitle {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: 700;
+  margin-bottom: 18px;
+  margin: 0;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.statRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.statRowLabel {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.statRowValue {
+  color: var(--accent-soft);
+  font-weight: 700;
+  font-size: 16px;
+  font-family: var(--font-display);
+}
+
+.activityItem {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.activityLabel {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.activityTime {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin-top: 2px;
+}

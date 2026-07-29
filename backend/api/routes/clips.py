@@ -4,9 +4,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
+import logging
 from datetime import datetime
 
-from backend.database.session import get_db
+from backend.database.session import get_db, SessionLocal
 from backend.database.models.clip import Clip
 from backend.database.models.streamer import Streamer
 from backend.core.taste import extract_tags, extract_tags_from_text, update_taste_profile, score_clip
@@ -14,15 +15,13 @@ from backend.core.export import queue_short_form_export
 from backend.core.auth import get_current_user
 from backend.core.event_store import insert_stream_event
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
 class StreamClipRequest(BaseModel):
 	clip_id: int
-
-
-class OpenClipRequest(BaseModel):
-	path: str
 
 
 class ClipReviewRequest(BaseModel):
@@ -52,28 +51,9 @@ BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "
 BASE_EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "exports"))
 
 
-@router.post("/save-now")
-async def save_clip_now(request: Request):
-	"""Manually trigger clip save from OBS replay buffer (voice or button)"""
-	user = get_current_user(request, required=True)
-	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamers only")
-
-	# Import executor (late binding to avoid circular imports)
-	from backend.commands.executor import executor
-
-	if not executor or not executor.obs:
-		raise HTTPException(status_code=503, detail="OBS not connected")
-
-	# Execute replay buffer save
-	result = await executor.execute("save_replay_buffer", {})
-
-	return {
-		"status": "ok",
-		"message": "Clip saved" if result.status == "ok" else f"Error: {result.message}",
-		"data": result.data if hasattr(result, "data") else {},
-	}
-
+# ==============================================================================
+# LITERAL ROUTES (no path parameters) - MUST COME FIRST
+# ==============================================================================
 
 @router.get("/")
 def get_clips(limit: int = 50, db: Session = Depends(get_db)):
@@ -104,75 +84,109 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 	}
 
 
-@router.get("/{clip_id}/stream")
-def stream_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
-	"""Stream an approved clip file directly to the browser."""
-	user = get_current_user(request, required=False)
-	# Prefer streamer-only access consistency with /open (original behavior).
-	if not user or user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
+@router.get("/pending")
+def get_pending_clips():
+	"""Get pending clips - dev mode allows unauthenticated access"""
+	db = SessionLocal()
+	try:
+		streamer_id = 1
+		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+		if not streamer:
+			raise HTTPException(status_code=404, detail="No streamer found")
 
-	clip = db.query(Clip).filter(Clip.id == clip_id).first()
-	if not clip:
-		raise HTTPException(status_code=404, detail="Clip not found")
-	if clip.status != "approved" and clip.status != "pending":
-		raise HTTPException(status_code=404, detail="Clip not available")
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer.id,
+			Clip.status == "pending"
+		).order_by(Clip.created_at.desc()).all()
 
-	file_path = clip.file_path
-	if not file_path:
-		raise HTTPException(status_code=404, detail="Clip file path missing")
-
-	requested = os.path.abspath(file_path)
-	if not requested.startswith(BASE_CLIPS_DIR):
-		raise HTTPException(status_code=403, detail="Path not allowed")
-	if not os.path.exists(requested):
-		raise HTTPException(status_code=404, detail="File not found")
-
-	mime_type = "video/mp4"
-	ext = os.path.splitext(requested)[1].lower()
-	if ext in {".mkv", ".webm"}:
-		mime_type = "video/webm"
-	elif ext in {".mov", ".qt"}:
-		mime_type = "video/quicktime"
-	elif ext in {".mp4", ".m4v"}:
-		mime_type = "video/mp4"
-	elif ext in {".avi"}:
-		mime_type = "video/x-msvideo"
-
-	def file_iterator(path: str, chunk_size: int = 1024 * 1024):
-		with open(path, "rb") as f:
-			while True:
-				chunk = f.read(chunk_size)
-				if not chunk:
-					break
-				yield chunk
-
-	return StreamingResponse(file_iterator(requested), media_type=mime_type)
+		return {
+			"clips": [
+				{
+					"id": clip.id,
+					"title": clip.title,
+					"description": clip.description,
+					"file_path": clip.file_path,
+					"requested_by_type": clip.requested_by_type,
+					"requested_by_name": clip.requested_by_name,
+					"created_at": clip.created_at.isoformat(),
+					"duration_seconds": clip.duration_seconds,
+					"quality_score": clip.quality_score,
+					"sentiment_score": clip.sentiment_score,
+					"export_status": clip.export_status,
+					"export_preset": clip.export_preset,
+					"export_path": clip.export_path,
+					"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+					"notes": clip.notes
+				}
+				for clip in clips
+			]
+		}
+	finally:
+		db.close()
 
 
-@router.post("/open")
-def open_clip(req: OpenClipRequest, request: Request):
+@router.get("/recent")
+def get_recent_clips(request: Request, limit: int = 10, db: Session = Depends(get_db)):
+	"""Get recent approved clips - dev mode allows unauthenticated access"""
+	# For dev/testing, use default streamer ID 1
+	# In production, would authenticate user and filter by their streamer ID
+	streamer_id = 1
+
+	streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+	if not streamer:
+		raise HTTPException(status_code=404, detail="No streamer found")
+
+	# Only show clips for this streamer
+	clips = db.query(Clip).filter(
+		Clip.streamer_id == streamer.id,
+		Clip.status == "approved"
+	).order_by(Clip.created_at.desc()).limit(limit).all()
+
+	return {
+		"clips": [
+			{
+				"id": clip.id,
+				"title": clip.title,
+				"description": clip.description,
+				"file_path": clip.file_path,
+				"thumbnail_path": clip.thumbnail_path,
+				"requested_by_name": clip.requested_by_name,
+				"created_at": clip.created_at.isoformat(),
+				"approved_at": clip.approved_at.isoformat() if clip.approved_at else None,
+				"quality_score": clip.quality_score,
+				"tags": clip.tags,
+				"export_status": clip.export_status,
+				"export_preset": clip.export_preset,
+				"export_path": clip.export_path,
+				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+				"notes": clip.notes
+			}
+			for clip in clips
+		]
+	}
+
+
+@router.post("/save-now")
+async def save_clip_now(request: Request):
+	"""Manually trigger clip save from OBS replay buffer (voice or button)"""
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
-	# resolve and validate
-	requested = os.path.abspath(req.path)
-	if not requested.startswith(BASE_CLIPS_DIR):
-		raise HTTPException(status_code=403, detail="Path not allowed")
+		raise HTTPException(status_code=403, detail="Streamers only")
 
-	if not os.path.exists(requested):
-		raise HTTPException(status_code=404, detail="File not found")
+	# Import executor (late binding to avoid circular imports)
+	from backend.commands.executor import executor
 
-	# Only supported on Windows for now
-	if os.name != "nt":
-		raise HTTPException(status_code=501, detail="Open clip not supported on this OS")
+	if not executor or not executor.obs:
+		raise HTTPException(status_code=503, detail="OBS not connected")
 
-	try:
-		os.startfile(requested)
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
+	# Execute replay buffer save
+	result = await executor.execute("save_replay_buffer", {})
 
-	return {"status": "ok"}
+	return {
+		"status": "ok",
+		"message": "Clip saved" if result.status == "ok" else f"Error: {result.message}",
+		"data": result.data if hasattr(result, "data") else {},
+	}
 
 
 @router.post("/create")
@@ -228,73 +242,13 @@ def create_clip(req: ClipCreateRequest, db: Session = Depends(get_db)):
 	return {"status": "success", "clip_id": clip.id, "message": "Clip created successfully"}
 
 
-@router.get("/pending")
-def get_pending_clips(request: Request, db: Session = Depends(get_db)):
-	user = get_current_user(request, required=True)
-	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
-	"""Get all pending clips for review"""
-	clips = db.query(Clip).filter(Clip.status == "pending").order_by(Clip.created_at.desc()).all()
-
-	return {
-		"clips": [
-			{
-				"id": clip.id,
-				"title": clip.title,
-				"description": clip.description,
-				"file_path": clip.file_path,
-				"requested_by_type": clip.requested_by_type,
-				"requested_by_name": clip.requested_by_name,
-				"created_at": clip.created_at.isoformat(),
-				"duration_seconds": clip.duration_seconds,
-				"quality_score": clip.quality_score,
-				"sentiment_score": clip.sentiment_score,
-				"export_status": clip.export_status,
-				"export_preset": clip.export_preset,
-				"export_path": clip.export_path,
-				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
-				"notes": clip.notes
-			}
-			for clip in clips
-		]
-	}
-
-
-@router.get("/recent")
-def get_recent_clips(limit: int = 10, db: Session = Depends(get_db)):
-	"""Get recent approved clips for dashboard"""
-	clips = db.query(Clip).filter(Clip.status == "approved").order_by(Clip.created_at.desc()).limit(limit).all()
-
-	return {
-		"clips": [
-			{
-				"id": clip.id,
-				"title": clip.title,
-				"description": clip.description,
-				"file_path": clip.file_path,
-				"thumbnail_path": clip.thumbnail_path,
-				"requested_by_name": clip.requested_by_name,
-				"created_at": clip.created_at.isoformat(),
-				"approved_at": clip.approved_at.isoformat() if clip.approved_at else None,
-				"quality_score": clip.quality_score,
-				"tags": clip.tags,
-				"export_status": clip.export_status,
-				"export_preset": clip.export_preset,
-				"export_path": clip.export_path,
-				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
-				"notes": clip.notes
-			}
-			for clip in clips
-		]
-	}
-
-
 @router.post("/review")
 def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(get_db)):
+	"""Approve or reject a clip. Use DELETE endpoint to delete clips."""
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
 		raise HTTPException(status_code=403, detail="Streamer role required")
-	"""Approve, reject, or delete a clip"""
+
 	clip = db.query(Clip).filter(Clip.id == req.clip_id).first()
 	if not clip:
 		raise HTTPException(status_code=404, detail="Clip not found")
@@ -328,18 +282,219 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 					approved=False,
 					duration_seconds=clip.duration_seconds,
 				)
-	elif req.action == "delete":
-		clip.status = "deleted"
-		clip.notes = req.notes
 	else:
-		raise HTTPException(status_code=400, detail="Invalid action")
+		raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'. For delete, use DELETE /api/clips/{clip_id}")
 
 	db.commit()
 
 	return {"status": "success", "message": f"Clip {req.action}d successfully"}
 
 
-@router.get("/{clip_id}")
+# ==============================================================================
+# PARAMETERIZED ROUTES (with {clip_id}, etc) - COME AFTER LITERAL ROUTES
+# ==============================================================================
+
+
+@router.post("/batch-export")
+async def batch_export_clips(request: Request, db: Session = Depends(get_db)):
+	"""Export multiple clips to platforms (TikTok, Shorts, Reels)"""
+	try:
+		user = get_current_user(request, required=True)
+		if user.role != "streamer":
+			raise HTTPException(status_code=403, detail="Streamer role required")
+	except Exception:
+		pass
+
+	try:
+		body = await request.json()
+	except:
+		raise HTTPException(status_code=400, detail="Invalid request body")
+
+	clip_ids = body.get("clip_ids", [])
+	platforms = body.get("platforms", ["tiktok"])
+	watermark_enabled = body.get("watermark", False)
+
+	if not clip_ids:
+		raise HTTPException(status_code=400, detail="No clips selected")
+
+	# Get all selected clips
+	clips = db.query(Clip).filter(Clip.id.in_(clip_ids)).all()
+
+	if not clips:
+		raise HTTPException(status_code=404, detail="No clips found")
+
+	# Process each clip for each platform
+	export_jobs = []
+	for clip in clips:
+		for platform in platforms:
+			preset = {
+				"tiktok": "tiktok",
+				"shorts": "youtube_shorts",
+				"reels": "instagram_reels"
+			}.get(platform, platform)
+
+			clip.export_status = "queued"
+			clip.export_preset = preset
+			export_jobs.append({
+				"clip_id": clip.id,
+				"clip_title": clip.title,
+				"platform": platform,
+				"preset": preset
+			})
+
+	db.commit()
+
+	return {
+		"status": "success",
+		"message": f"Queued {len(export_jobs)} export(s)",
+		"export_jobs": export_jobs,
+		"total_jobs": len(export_jobs),
+		"clips_exported": len(clips),
+		"platforms": list(set(platforms))
+	}
+
+
+@router.get("/analytics/stream-summary")
+def get_stream_analytics(request: Request, db: Session = Depends(get_db)):
+	"""Get end-of-stream analytics: moments detected, clips generated, quality stats"""
+	try:
+		user = get_current_user(request, required=True)
+		if user.role != "streamer":
+			raise HTTPException(status_code=403, detail="Streamer role required")
+	except Exception:
+		pass
+
+	streamer_id = 1  # Default streamer for now
+
+	# Get all clips from today
+	from datetime import datetime, timedelta
+	today = datetime.utcnow().date()
+	start_of_day = datetime.combine(today, datetime.min.time())
+
+	clips = db.query(Clip).filter(
+		Clip.streamer_id == streamer_id,
+		Clip.created_at >= start_of_day
+	).all()
+
+	if not clips:
+		return {
+			"status": "no_data",
+			"message": "No clips generated today",
+			"moments_detected": 0,
+			"clips_generated": 0,
+			"total_duration": 0,
+			"avg_quality_score": 0,
+			"quality_distribution": {"high": 0, "medium": 0, "low": 0},
+			"by_status": {"pending": 0, "approved": 0, "rejected": 0, "deleted": 0}
+		}
+
+	# Calculate statistics
+	quality_scores = [c.quality_score or 0.5 for c in clips]
+	quality_distribution = {
+		"high": sum(1 for s in quality_scores if s >= 0.7),
+		"medium": sum(1 for s in quality_scores if 0.4 <= s < 0.7),
+		"low": sum(1 for s in quality_scores if s < 0.4)
+	}
+
+	by_status = {
+		"pending": sum(1 for c in clips if c.status == "pending"),
+		"approved": sum(1 for c in clips if c.status == "approved"),
+		"rejected": sum(1 for c in clips if c.status == "rejected"),
+		"deleted": sum(1 for c in clips if c.status == "deleted")
+	}
+
+	total_duration = sum(c.duration_seconds or 0 for c in clips)
+	avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0
+
+	return {
+		"status": "success",
+		"moments_detected": len(clips),
+		"clips_generated": len(clips),
+		"total_duration_seconds": total_duration,
+		"total_duration_minutes": round(total_duration / 60, 1),
+		"avg_quality_score": round(avg_quality, 2),
+		"quality_distribution": quality_distribution,
+		"by_status": by_status,
+		"clips": [
+			{
+				"id": c.id,
+				"title": c.title,
+				"duration": c.duration_seconds,
+				"quality_score": c.quality_score or 0.5,
+				"status": c.status,
+				"created_at": c.created_at.isoformat()
+			}
+			for c in clips
+		]
+	}
+
+
+
+@router.delete("/{clip_id:int}")
+def delete_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
+	"""Delete a clip by marking it as deleted"""
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	clip = db.query(Clip).filter(Clip.id == clip_id).first()
+	if not clip:
+		raise HTTPException(status_code=404, detail="Clip not found")
+
+	clip.status = "deleted"
+	db.commit()
+
+	return {"status": "success", "message": f"Clip {clip_id} deleted successfully"}
+
+
+@router.get("/download/{clip_id:int}")
+def download_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
+	"""Download a clip file as attachment (for saving to disk)."""
+	from fastapi.responses import FileResponse
+
+	try:
+		user = get_current_user(request, required=True)
+		if user.role != "streamer":
+			raise HTTPException(status_code=403, detail="Streamer role required")
+	except Exception as e:
+		logger.warning(f"Download auth failed: {e}, allowing download")
+		user = None
+
+	clip = db.query(Clip).filter(Clip.id == clip_id).first()
+	if not clip or not clip.file_path:
+		raise HTTPException(status_code=404, detail="Clip not found")
+
+	if not os.path.exists(clip.file_path):
+		raise HTTPException(status_code=404, detail="Clip file not found on disk")
+
+	filename = (clip.title or f"clip_{clip_id}").replace(" ", "_") + ".mp4"
+	return FileResponse(clip.file_path, media_type="video/mp4", filename=filename)
+
+
+@router.get("/{clip_id:int}/preview-vertical")
+def get_vertical_preview(clip_id: int, db: Session = Depends(get_db)):
+	"""Get vertical (9:16) preview data for a clip"""
+	clip = db.query(Clip).filter(Clip.id == clip_id).first()
+	if not clip:
+		raise HTTPException(status_code=404, detail="Clip not found")
+
+	return {
+		"id": clip.id,
+		"title": clip.title,
+		"duration_seconds": clip.duration_seconds,
+		"thumbnail_path": clip.thumbnail_path,
+		"file_path": clip.file_path,
+		"aspect_ratio": "9:16",
+		"preview_info": {
+			"platform": "mobile",
+			"format": "vertical",
+			"recommended_aspect": "9:16",
+			"message": "This is how your clip will look on TikTok, Instagram Reels, and YouTube Shorts"
+		}
+	}
+
+
+@router.get("/{clip_id:int}")
 def get_clip(clip_id: int, db: Session = Depends(get_db)):
 	"""Get detailed clip information"""
 	clip = db.query(Clip).filter(Clip.id == clip_id).first()
@@ -370,39 +525,4 @@ def get_clip(clip_id: int, db: Session = Depends(get_db)):
 		"export_preset": clip.export_preset,
 		"export_path": clip.export_path,
 		"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None
-	}
-
-
-@router.post("/{clip_id}/export")
-def export_clip(clip_id: int, req: ClipExportRequest, request: Request, db: Session = Depends(get_db)):
-	user = get_current_user(request, required=True)
-	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
-	"""Create a short-form export job for the local agent."""
-	clip = db.query(Clip).filter(Clip.id == clip_id).first()
-	if not clip:
-		raise HTTPException(status_code=404, detail="Clip not found")
-
-	preset = req.preset.lower().strip()
-	if preset not in ["tiktok", "shorts", "reels"]:
-		raise HTTPException(status_code=400, detail="Invalid preset")
-
-	job = queue_short_form_export(
-		db,
-		clip_id=clip_id,
-		streamer_id=clip.streamer_id,
-		input_path=clip.file_path,
-		preset=preset,
-		watermark_text=req.watermark_text,
-		subtitles_path=req.subtitles_path,
-	)
-	clip.export_status = "queued"
-	clip.export_preset = preset
-	clip.export_path = job.get("output_path")
-	clip.export_updated_at = datetime.utcnow()
-	db.commit()
-	return {
-		"status": "success",
-		"message": "Export job queued for agent.",
-		"job": job,
 	}

@@ -19,38 +19,22 @@ import threading
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-# Import routers - Renamed 'obs' to 'obs_router' to avoid naming conflicts
+# Import routers - v1 core only
 from backend.api.routes import (
-    analytics,
     auth,
     clips,
     commands,
-    moderation,
+    obs as obs_router,
     streams,
-    streamer_search,
-    obs as obs_router, # Renamed here
 )
 
-from backend.api.routes import events as events_router
-from backend.api.routes import integrations as integrations_router
-from backend.api.routes import policy as policy_router
-from backend.api.routes import agent as agent_router
 from backend.api.routes import moment_finder as moment_finder_router
-from backend.api.routes import preferences as preferences_router
-from backend.api.routes import viewer_actions as viewer_actions_router
+from backend.api.routes import moment_detection as moment_detection_router
 from backend.api.routes import settings as settings_router
-from backend.api.routes import assistant as assistant_router
-from backend.api.routes import pricing as pricing_router
-from backend.api.routes import streamer_ai as streamer_ai_router
-from backend.api.routes import director as director_router
 from backend.api.routes import post_stream_report as post_stream_report_router
-
-from backend.api.routes import ml_training as ml_training_router
-from backend.api.routes import voice_agent as voice_agent_router
-from backend.api.routes import billing as billing_router
-from backend.api.routes import cameras as cameras_router
-from backend.api.routes import irl_phrases as irl_phrases_router
-from backend.api.routes import onboarding as onboarding_router
+from backend.api.routes import groq_proxy as groq_proxy_router
+# Removed: companion router (v1.1+ feature, not needed for v1)
+from backend.api.routes import clip_generator as clip_generator_router
 
 
 # Central dependencies
@@ -83,14 +67,28 @@ from backend.core.policy import evaluate_action
 from backend.core.pricing import limit_violation
 from backend.core.voice_agent import VoiceAgentService
 from backend.core.rate_limiter import limiter
+from backend.core.event_bus import init_event_bus, get_event_bus
 
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 import re
 
-# Initialize AsyncGroq client for async/await usage
-client = AsyncGroq(api_key=os.environ.get("GROQ_API_KEY"))
+# Initialize AsyncGroq client (lazy-load to avoid startup failure)
+_groq_client = None
+def get_groq_client():
+    global _groq_client
+    if _groq_client is None:
+        api_key = os.environ.get("GROQ_API_KEY")
+        if api_key:
+            try:
+                _groq_client = AsyncGroq(api_key=api_key)
+            except Exception as e:
+                logger.error(f"Failed to initialize Groq: {e}")
+    return _groq_client
+
+# Keep old name for backward compatibility
+client = None  # Will be None if key not set, use get_groq_client() instead
 
 # Global In-Memory Event Log (The "Chat History")
 event_log = [
@@ -330,6 +328,17 @@ class CommandRequest(BaseModel):
 async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     print("Kazumi is waking up...")
+
+    # Initialize Event Bus (Redis Streams + PostgreSQL)
+    try:
+        event_bus = await init_event_bus()
+        app.state.event_bus = event_bus
+        print("[OK] Event Bus initialized (Redis Streams + PostgreSQL)")
+    except Exception as e:
+        print(f"[WARN] Event Bus failed to initialize: {e}")
+        print("  Continuing without event bus (in-memory only)")
+        app.state.event_bus = None
+
     _ensure_runtime_schema_compatibility()
 
     # Initialize other services first
@@ -506,10 +515,59 @@ async def lifespan(app: FastAPI):
     app.state.ingestion_stop = stop_event
     app.state.ingestion_task = asyncio.create_task(ingestion_loop(stop_event))
 
+    # Initialize Clip Generator Service (uses OBS adapter for real clip extraction)
+    try:
+        from backend.core.clip_generator_service import ClipGeneratorService, set_clip_generator
+        from backend.core.moment_detector import get_detector
+
+        clip_generator = ClipGeneratorService(obs_adapter=obs_instance)
+        set_clip_generator(clip_generator)
+        app.state.clip_generator = clip_generator
+        print("[OK] Clip Generator Service initialized")
+
+        # Wire detector to clip generator callback
+        detector = get_detector()
+        detector.on_moment_detected(clip_generator.on_moment_detected)
+        print("[OK] Detector wired to Clip Generator Service")
+    except Exception as e:
+        print(f"[WARN] Clip Generator Service failed: {e}")
+        app.state.clip_generator = None
+
+    # Initialize OBS Audio Poller (polls OBS audio levels for moment detection)
+    try:
+        from backend.core.obs_audio_poller import OBSAudioPoller, set_audio_poller
+
+        detector = get_detector()
+        audio_poller = OBSAudioPoller(
+            obs_adapter=obs_instance,
+            detector=detector,
+            poll_interval_ms=500  # Poll every 500ms
+        )
+        set_audio_poller(audio_poller)
+        await audio_poller.start()
+        app.state.audio_poller = audio_poller
+        print("[OK] OBS Audio Poller started")
+    except Exception as e:
+        print(f"[WARN] OBS Audio Poller failed: {e}")
+        app.state.audio_poller = None
+
     yield  # This is where the app actually runs
 
     # --- SHUTDOWN LOGIC ---
     print("Kazumi is going to sleep...")
+
+    # Stop OBS Audio Poller
+    if hasattr(app.state, "audio_poller") and app.state.audio_poller:
+        try:
+            await app.state.audio_poller.stop()
+            print("[OK] OBS Audio Poller stopped")
+        except Exception as e:
+            print(f"[WARN] Audio Poller shutdown error: {e}")
+
+    # Close Event Bus
+    if hasattr(app.state, "event_bus") and app.state.event_bus:
+        await app.state.event_bus.close()
+        print("[OK] Event Bus closed")
 
     if hasattr(app.state, "observer"):
         app.state.observer.is_running = False
@@ -549,6 +607,9 @@ def _on_rate_bucket_evicted(key):
 
 
 def _resolve_route_limit(path: str) -> int | None:
+    # Dev/test endpoints - no rate limit
+    if path in {"/api/moments/test", "/api/moments/chat-event", "/api/moments/audio-event", "/api/moments/reset"}:
+        return None
     if path.startswith("/api/ingest"):
         return 120
     if path.startswith("/auth"):
@@ -773,35 +834,107 @@ async def api_health(request: Request):
     overall = all(checks.values())
     return {"status": "ok" if overall else "degraded", "checks": checks}
 
-app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+
+# WORKAROUND: Direct routes for /pending and /recent (bypass clips router routing issue)
+# TODO: Move back to clips.py once routing is fixed
+from backend.database.session import SessionLocal
+from backend.database.models.clip import Clip
+from backend.database.models.streamer import Streamer
+
+@app.get("/api/clips/pending")
+def get_pending_clips_workaround():
+	"""Get pending clips - workaround route in main.py"""
+	db = SessionLocal()
+	try:
+		streamer_id = 1
+		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+		if not streamer:
+			raise HTTPException(status_code=404, detail="No streamer found")
+
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer.id,
+			Clip.status == "pending"
+		).order_by(Clip.created_at.desc()).all()
+
+		return {
+			"clips": [
+				{
+					"id": clip.id,
+					"title": clip.title,
+					"description": clip.description,
+					"file_path": clip.file_path,
+					"requested_by_type": clip.requested_by_type,
+					"requested_by_name": clip.requested_by_name,
+					"created_at": clip.created_at.isoformat(),
+					"duration_seconds": clip.duration_seconds,
+					"quality_score": clip.quality_score,
+					"sentiment_score": clip.sentiment_score,
+					"export_status": clip.export_status,
+					"export_preset": clip.export_preset,
+					"export_path": clip.export_path,
+					"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+					"notes": clip.notes
+				}
+				for clip in clips
+			]
+		}
+	finally:
+		db.close()
+
+
+@app.get("/api/clips/recent")
+def get_recent_clips_workaround(limit: int = 10):
+	"""Get recent approved clips - workaround route in main.py"""
+	db = SessionLocal()
+	try:
+		streamer_id = 1
+		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+		if not streamer:
+			raise HTTPException(status_code=404, detail="No streamer found")
+
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer.id,
+			Clip.status == "approved"
+		).order_by(Clip.created_at.desc()).limit(limit).all()
+
+		return {
+			"clips": [
+				{
+					"id": clip.id,
+					"title": clip.title,
+					"description": clip.description,
+					"file_path": clip.file_path,
+					"thumbnail_path": clip.thumbnail_path,
+					"requested_by_name": clip.requested_by_name,
+					"created_at": clip.created_at.isoformat(),
+					"approved_at": clip.approved_at.isoformat() if clip.approved_at else None,
+					"quality_score": clip.quality_score,
+					"tags": clip.tags,
+					"export_status": clip.export_status,
+					"export_preset": clip.export_preset,
+					"export_path": clip.export_path,
+					"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+					"notes": clip.notes
+				}
+				for clip in clips
+			]
+		}
+	finally:
+		db.close()
+
+# v1 Core Routes Only
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(clips.router, prefix="/api/clips", tags=["Clips"])
-app.include_router(clips.router, prefix="/clips", tags=["Clips"])
 app.include_router(commands.router, prefix="/commands", tags=["Commands"])
-app.include_router(moderation.router, prefix="/moderation", tags=["Moderation"])
 app.include_router(streams.router, prefix="/streams", tags=["Streams"])
-app.include_router(events_router.router, prefix="", tags=["Events"])
-app.include_router(integrations_router.router, prefix="", tags=["Integrations"])
-app.include_router(policy_router.router, prefix="", tags=["Policy"])
-app.include_router(agent_router.router, prefix="", tags=["Agent"])
 app.include_router(moment_finder_router.router, prefix="", tags=["MomentFinder"])
-app.include_router(preferences_router.router, prefix="", tags=["Preferences"])
-app.include_router(viewer_actions_router.router, prefix="", tags=["ViewerActions"])
+app.include_router(moment_detection_router.router, tags=["MomentDetection"])
 app.include_router(settings_router.router, prefix="", tags=["Settings"])
-app.include_router(assistant_router.router, prefix="", tags=["Assistant"])
-app.include_router(pricing_router.router, prefix="", tags=["Pricing"])
-app.include_router(streamer_ai_router.router, prefix="", tags=["StreamerAI"])
-app.include_router(director_router.router, prefix="", tags=["Director"])
 app.include_router(post_stream_report_router.router, prefix="", tags=["PostStreamReport"])
-
-app.include_router(ml_training_router.router, prefix="", tags=["MLTraining"])
-app.include_router(voice_agent_router.router, prefix="", tags=["VoiceAgent"])
-app.include_router(billing_router.router, prefix="", tags=["Billing"])
-app.include_router(cameras_router.router, prefix="", tags=["Cameras"])
-app.include_router(irl_phrases_router.router, prefix="", tags=["IRLPhrases"])
-app.include_router(streamer_search.router, prefix="", tags=["StreamerSearch"])
-app.include_router(onboarding_router.router, prefix="", tags=["Onboarding"])
-app.include_router(obs_router.router) # Updated to use renamed router
+app.include_router(groq_proxy_router.router, tags=["Groq"])
+# Removed: companion_router (v1.1+ feature, not needed for v1)
+app.include_router(clip_generator_router.router, tags=["ClipGenerator"])
+app.include_router(obs_router.router, tags=["OBS"])
 
 
 
@@ -2222,12 +2355,13 @@ async def restart_engine(request: Request):
         return {"status": "success", "message": "Engine restarting..."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "backend.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=False,
     )
     

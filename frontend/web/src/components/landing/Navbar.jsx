@@ -4,8 +4,9 @@ import { ArrowUpRight } from "lucide-react";
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
-  { label: "For Viewers", href: "#for-viewers" },
   { label: "Pricing", href: "#pricing" },
+  { label: "Docs", href: "#docs" },
+  { label: "Blog", href: "#blog" },
 ]
 
 export default function Navbar() {
@@ -17,7 +18,7 @@ export default function Navbar() {
           <img src="/logo.png" alt="Kazumee logo" className="h-10 w-10 object-contain" />
           <span className="flex flex-col leading-none">
             <span className="text-lg font-extrabold tracking-wide text-white">KAZUMEE</span>
-            <span className="text-[10px] font-semibold tracking-[0.2em] text-pink-400">GLOBAL AI CO-PILOT</span>
+            <span className="text-[10px] font-semibold tracking-[0.2em] text-pink-400">AUTO-CLIP CREATOR</span>
           </span>
         </a>
 

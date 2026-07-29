@@ -127,7 +127,7 @@ class BrainDecider:
                 return BrainDecision("search", "execute", BrainAction.SEARCH_CLIP, f"Searching for: {query}", 0.85, {"query": query})
 
         # 5. CLIPPING
-        if any(phrase in text for phrase in ["clip that", "save that", "capture that"]):
+        if any(phrase in text for phrase in ["clip that", "save that", "capture that", "clip now", "clip it", "save clip"]):
             return BrainDecision("clip", "execute", BrainAction.SAVE_REPLAY_BUFFER, "Saving clip", 0.95)
 
         # 6. PANIC/SAFETY MODE

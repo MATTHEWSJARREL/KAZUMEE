@@ -1,0 +1,131 @@
+﻿/* ============================================
+   DASHBOARD LAYOUT — 3-zone grid
+   icon rail | main content | right rail
+   ============================================ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 340px;
+  gap: 24px;
+  min-height: 100vh;
+  padding: 24px;
+  align-items: start;
+}
+
+.iconRail {
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 0;
+}
+
+.iconGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: none;
+  border: none;
+}
+
+.iconButton:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.iconButtonActive {
+  color: #fff;
+  background: var(--accent-gradient);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.contentList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rowCard {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.rowCard:hover {
+  border-color: var(--glass-border-hover);
+}
+
+.rightRail {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 1180px) {
+  .shell {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+  .rightRail {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+  }
+  .rightRail > * {
+    flex: 1 1 300px;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+  .iconRail {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    padding: 12px;
+  }
+  .iconGroup {
+    flex-direction: row;
+  }
+}

@@ -20,3 +20,5 @@ export default function RootLayout({children}) {
     </QueryClientProvider>
   );
 }
+
+// Add navigation link to dashboard in your header

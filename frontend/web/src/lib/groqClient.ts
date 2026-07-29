@@ -1,10 +1,12 @@
 /**
  * Groq API Client
- * Handles all AI/voice command processing through Groq
+ * Routes requests through backend to avoid CORS issues
  */
 
-const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY;
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const BACKEND_URL = typeof window !== "undefined"
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : "http://localhost:8000";
+const GROQ_API_URL = `${BACKEND_URL}/api/groq/chat`;
 
 interface GroqMessage {
   role: "user" | "assistant" | "system";
@@ -25,16 +27,18 @@ interface GroqResponse {
 export async function askGroq(
   userMessage: string,
   conversationHistory: GroqMessage[] = [],
-  systemPrompt: string = "You are Kazumee, an AI streaming assistant. Help streamers with their questions about gaming, streaming, and content creation. Keep responses concise and helpful."
+  systemPrompt: string = `You are Kazumee, the vibe streaming buddy. You're chill, real, and know the streamer life.
+  - Keep it SHORT and conversational (1-3 sentences max, unless they ask for details)
+  - Use casual language, drop some streaming slang when it fits
+  - Be supportive and hyped about their stream
+  - Use emojis sparingly but when it makes sense (like 🔥 for fire content, 💜 for love)
+  - You're not a robot - you're a friend in their ear while they stream
+  - If you don't know something specific, be honest about it but suggest what to try
+  - No boring long paragraphs - keep it punchy`
 ): Promise<string> {
-  if (!GROQ_API_KEY) {
-    throw new Error("Groq API key not configured. Add NEXT_PUBLIC_GROQ_API_KEY to .env.local");
-  }
-
   try {
-    // Build message history
+    // Build message history (excluding system prompt as it's handled separately)
     const messages: GroqMessage[] = [
-      { role: "system", content: systemPrompt },
       ...conversationHistory,
       { role: "user", content: userMessage }
     ];
@@ -42,24 +46,24 @@ export async function askGroq(
     const response = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "mixtral-8x7b-32768",
         messages: messages,
+        system_prompt: systemPrompt,
         temperature: 0.7,
         max_tokens: 500,
       }),
+      credentials: "include",
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(`Groq API error: ${error.error?.message || "Unknown error"}`);
+      throw new Error(error.detail || "Failed to get response from Kazumee");
     }
 
-    const data: GroqResponse = await response.json();
-    return data.choices[0].message.content;
+    const data = await response.json();
+    return data.response;
   } catch (error) {
     console.error("Groq API Error:", error);
     throw error;
@@ -103,11 +107,14 @@ export async function processVoiceCommand(
  * Get streaming tips from Groq
  */
 export async function getStreamingTip(topic: string): Promise<string> {
-  const systemPrompt = `You are Kazumee, a streaming expert. Give quick, actionable tips for streamers.
-  Keep responses to 1-2 sentences max. Be specific and practical.`;
+  const systemPrompt = `You are Kazumee, the streaming buddy. Give quick, real streaming tips.
+  - 1-2 sentences MAX
+  - Make it actionable right now
+  - Be genuine, not generic
+  - Sound like you're texting a friend, not reading from a guide`;
 
   return askGroq(
-    `Give me a tip about: ${topic}`,
+    `Quick tip about: ${topic}`,
     [],
     systemPrompt
   );
@@ -120,11 +127,14 @@ export async function getGameStrategy(
   game: string,
   situation: string
 ): Promise<string> {
-  const systemPrompt = `You are Kazumee, a gaming expert assistant. Give quick strategy tips for the streamer's current situation.
-  Be concise (1-2 sentences). Focus on practical, actionable advice.`;
+  const systemPrompt = `You are Kazumee, the hype backseat gamer. Give quick play tips like a buddy watching their screen.
+  - 1-2 sentences MAX
+  - Be encouraging but real
+  - If you see the play, call it out excitedly
+  - Sound like you're vibing with them, not coaching them`;
 
   return askGroq(
-    `The streamer is playing ${game}. Their current situation: ${situation}. What should they do?`,
+    `${game} - ${situation}. What's the move?`,
     [],
     systemPrompt
   );

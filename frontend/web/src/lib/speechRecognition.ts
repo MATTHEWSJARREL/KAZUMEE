@@ -7,6 +7,7 @@ export interface SpeechRecognitionConfig {
   language?: string;
   continuous?: boolean;
   interimResults?: boolean;
+  silenceTimeout?: number; // ms to wait for silence before ending
   onResult?: (transcript: string, isFinal: boolean) => void;
   onError?: (error: string) => void;
   onStart?: () => void;
@@ -17,6 +18,8 @@ export class SpeechToText {
   private recognition: any;
   private isListening = false;
   private transcript = "";
+  private silenceTimer: any = null;
+  private lastResultTime = 0;
 
   constructor() {
     const SpeechRecognition =
@@ -69,6 +72,18 @@ export class SpeechToText {
           finalTranscript || interimTranscript,
           event.results[event.results.length - 1].isFinal
         );
+
+        // Reset silence timer on new input
+        this.lastResultTime = Date.now();
+        if (this.silenceTimer) clearTimeout(this.silenceTimer);
+
+        // Auto-end after silence timeout (default 1.5s)
+        const silenceTimeout = config.silenceTimeout || 1500;
+        this.silenceTimer = setTimeout(() => {
+          if (this.isListening) {
+            this.recognition.stop();
+          }
+        }, silenceTimeout);
       };
 
       this.recognition.onerror = (event: any) => {

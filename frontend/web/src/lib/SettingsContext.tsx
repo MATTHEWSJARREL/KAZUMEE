@@ -139,10 +139,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const res = await apiFetch("/api/settings");
-      if (!res.ok) return;
+      // Silently ignore 401 (unauthenticated), 403 (viewers don't have settings) and other errors
+      if (res.status === 401 || res.status === 403 || !res.ok) return;
       const data = await res.json();
       setSettings(mergeSettings(DEFAULT_SETTINGS, data));
-    } catch {
+    } catch (error) {
+      // Silently ignore CORS and network errors for viewers
       // ignore
     }
   };

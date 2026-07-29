@@ -109,3 +109,83 @@ async def update_settings(request: Request):
 async def update_settings_api(request: Request):
     # Alias route
     return await update_settings(request)
+
+
+# ===== MOMENT DETECTION SETTINGS =====
+
+@router.get("/api/moments/settings")
+def get_moment_settings(request: Request):
+    """Get moment detection settings for authenticated streamer"""
+    from backend.core.settings_manager import get_settings_manager
+
+    user = get_current_user(request, required=True)
+    if user.role != "streamer":
+        raise HTTPException(status_code=403, detail="Streamer role required")
+
+    db = SessionLocal()
+    try:
+        streamer = db.query(Streamer).filter(Streamer.user_id == user.id).first()
+        if not streamer:
+            raise HTTPException(status_code=404, detail="Streamer profile not found")
+
+        settings_manager = get_settings_manager()
+        settings = settings_manager.get_settings(streamer.id)
+
+        return {
+            "status": "ok",
+            "settings": settings.to_dict()
+        }
+    finally:
+        db.close()
+
+
+@router.put("/api/moments/settings")
+def update_moment_settings(request: Request, body: dict):
+    """Update moment detection settings"""
+    from backend.core.settings_manager import get_settings_manager
+    from backend.core.moment_detector import get_detector
+
+    user = get_current_user(request, required=True)
+    if user.role != "streamer":
+        raise HTTPException(status_code=403, detail="Streamer role required")
+
+    db = SessionLocal()
+    try:
+        streamer = db.query(Streamer).filter(Streamer.user_id == user.id).first()
+        if not streamer:
+            raise HTTPException(status_code=404, detail="Streamer profile not found")
+
+        settings_manager = get_settings_manager()
+        settings = settings_manager.get_settings(streamer.id)
+
+        # Update fields from request
+        if "sensitivity" in body:
+            settings.sensitivity = max(0.0, min(1.0, float(body["sensitivity"])))
+            # Apply to detector
+            detector = get_detector()
+            detector.set_sensitivity(settings.sensitivity)
+
+        if "min_quality_score" in body:
+            settings.min_quality_score = max(0.0, min(1.0, float(body["min_quality_score"])))
+
+        if "auto_publish" in body:
+            settings.auto_publish = bool(body["auto_publish"])
+
+        if "auto_publish_platforms" in body:
+            settings.auto_publish_platforms = body["auto_publish_platforms"]
+
+        if "notify_on_clip" in body:
+            settings.notify_on_clip = bool(body["notify_on_clip"])
+
+        if "notify_on_publish" in body:
+            settings.notify_on_publish = bool(body["notify_on_publish"])
+
+        # Save to database
+        settings_manager.save_settings(streamer.id, settings)
+
+        return {
+            "status": "success",
+            "settings": settings.to_dict()
+        }
+    finally:
+        db.close()

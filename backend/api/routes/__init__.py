@@ -1,20 +1,11 @@
-from . import analytics
+# v1 Core Routes Only
 from . import auth
 from . import clips
 from . import commands
-from . import moderation
 from . import streams
 from . import obs
-from . import events
-from . import policy
-from . import agent
 from . import moment_finder
-from . import preferences
-from . import viewer_actions
-from . import pricing
-from . import streamer_ai
-from . import director
-from . import ml_training
-from . import billing
-from . import streamer_search
-
+from . import moment_detection
+from . import settings
+from . import post_stream_report
+from . import groq_proxy

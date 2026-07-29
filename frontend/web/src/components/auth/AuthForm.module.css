@@ -1,0 +1,213 @@
+.container {
+  width: 100%;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  padding: 48px 40px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.logoSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 8px;
+}
+
+.logo {
+  height: 36px;
+  width: 36px;
+  object-fit: contain;
+}
+
+.logoText {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 1px;
+  text-transform: lowercase;
+  margin: 0;
+}
+
+.logoSubtext {
+  font-size: 9px;
+  font-weight: 600;
+  color: #9333ea;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  margin: 0 0 28px 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.input {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #f9fafb;
+  color: #0f172a;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #9333ea;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+}
+
+.submit {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #9333ea 0%, #d946ef 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  text-transform: capitalize;
+  width: 100%;
+}
+
+.submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(147, 51, 234, 0.3);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.forgotPassword {
+  text-align: center;
+  display: block;
+  font-size: 13px;
+  color: #9333ea;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.forgotPassword:hover {
+  color: #d946ef;
+}
+
+.divider {
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 16px 0;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 45%;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.googleButton {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.googleButton:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.googleIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.signup {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.signupLink {
+  color: #9333ea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.signupLink:hover {
+  color: #d946ef;
+}
+
+.error {
+  padding: 12px;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  font-size: 13px;
+  border-left: 3px solid #dc2626;
+  margin-bottom: 16px;
+}

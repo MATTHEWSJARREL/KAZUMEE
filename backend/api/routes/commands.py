@@ -10,9 +10,6 @@ from backend.commands.obs_adapter import obs_bridge
 
 from backend.database.session import SessionLocal
 from backend.database.models.command import Command as CommandModel
-from backend.database.models.agent_command import AgentCommand
-from backend.core.agent_bus import agent_bus
-from backend.core.signing import sign_payload
 
 router = APIRouter()
 _service = None
@@ -166,7 +163,11 @@ async def process_voice_command(request: ProcessCommandRequest):
     # We define what a viewer is ALLOWED to trigger automatically
     safe_intents = ["list_scenes", "get_status", "get_available_sources", "get_available_cameras"]
 
-    if intent not in safe_intents:
+    # Streamer-only intents (execute immediately, no approval)
+    streamer_intents = ["clip"] if request.role == "streamer" else []
+    allowed_intents = safe_intents + streamer_intents
+
+    if intent not in allowed_intents:
         # Instead of executing, we log it for the streamer's dashboard
         from backend.main import event_log, _enqueue_command
         
@@ -265,37 +266,6 @@ async def update_command_status(
 
     # 3. If APPROVED, trigger the execution logic
     if new_status == "approved":
-        if cmd_record.streamer_id:
-            action_payload = {}
-            if cmd_record.intent == "switch_scene":
-                action_payload = {"scene": cmd_record.command_text.split(":")[-1].strip()}
-            agent_cmd = AgentCommand(
-                streamer_id=cmd_record.streamer_id,
-                command_id=cmd_record.id,
-                action=cmd_record.intent,
-                payload=action_payload,
-                status="pending",
-            )
-            db.add(agent_cmd)
-            db.commit()
-            payload = {
-                "id": agent_cmd.id,
-                "streamer_id": agent_cmd.streamer_id,
-                "command_id": agent_cmd.command_id,
-                "action": agent_cmd.action,
-                "payload": agent_cmd.payload or {},
-                "created_at": agent_cmd.created_at.isoformat() if agent_cmd.created_at else "",
-            }
-            signature = sign_payload(payload)
-            try:
-                await agent_bus.send(agent_cmd.streamer_id, {"command": payload, "signature": signature})
-            except Exception:
-                pass
-
-        use_local_agent = os.getenv("USE_LOCAL_AGENT", "false").lower() == "true"
-        if use_local_agent:
-            return {"status": "queued_for_agent"}
-
         if _service is None:
             return {"status": "approved_in_db", "error": "CommandService not ready for execution"}
 
@@ -343,3 +313,40 @@ async def trigger_listen():
             "status": "error",
             "message": str(e),
         }
+
+
+# --------------------------------------------------
+# Command Approval Endpoint
+# --------------------------------------------------
+class ApprovalRequest(BaseModel):
+    status: str  # "approved" or "rejected"
+
+
+@router.patch("/commands/{command_id}/status")
+async def update_command_status(command_id: int, request: ApprovalRequest, db: Session = Depends(lambda: SessionLocal())):
+    """Update approval status of a pending command"""
+    try:
+        command = db.query(CommandModel).filter(CommandModel.id == command_id).first()
+        if not command:
+            raise HTTPException(status_code=404, detail="Command not found")
+
+        # Map frontend status to backend status
+        status_map = {"approved": "approved", "rejected": "rejected", "pending": "pending"}
+        new_status = status_map.get(request.status, request.status)
+
+        command.status = new_status
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Command {command_id} marked as {new_status}",
+            "command_id": command_id,
+            "new_status": new_status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()

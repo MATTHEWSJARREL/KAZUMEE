@@ -13,33 +13,8 @@ class VectorClipService:
 
     def __init__(self, base_dir: str = "backend/data/clips"):
         self.base_dir = base_dir
-        self.mock_clips = [
-            {
-                "id": "demo_clip_1",
-                "title": "Epic Speed Run",
-                "url": "https://example.com/clip1.mp4",
-                "platform": "Twitch",
-                "description": "Amazing speed run completion",
-                "tags": ["gaming", "speedrun", "epic"]
-            },
-            {
-                "id": "demo_clip_2",
-                "title": "Funny Fail Moment",
-                "url": "https://example.com/clip2.mp4",
-                "platform": "YouTube",
-                "description": "Hilarious gaming fail",
-                "tags": ["funny", "fail", "gaming"]
-            },
-            {
-                "id": "demo_clip_3",
-                "title": "Pro Player Highlight",
-                "url": "https://example.com/clip3.mp4",
-                "platform": "Twitch",
-                "description": "Professional gameplay highlight",
-                "tags": ["pro", "highlight", "skill"]
-            }
-        ]
-        logger.info("VectorClipService initialized with demo data")
+        self.mock_clips = []
+        logger.info("VectorClipService initialized - no demo data, using real clips only")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration with defaults."""

@@ -230,10 +230,10 @@
 
 .streamer-chat-send {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   background: linear-gradient(135deg, var(--streamer-accent) 0%, var(--streamer-accent-light) 100%);
   border: none;
   border-radius: 50%;
@@ -241,6 +241,7 @@
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
+  padding: 0;
 }
 
 .streamer-chat-send:hover {
