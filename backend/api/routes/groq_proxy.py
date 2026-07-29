@@ -8,9 +8,9 @@ import os
 
 router = APIRouter(prefix="/api/groq", tags=["groq"])
 
-# Initialize Groq client
+# Initialize Groq client (optional for V1 MVP)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-groq_client = AsyncGroq(api_key=GROQ_API_KEY)
+groq_client = AsyncGroq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Cache for available models
 _available_models = None
