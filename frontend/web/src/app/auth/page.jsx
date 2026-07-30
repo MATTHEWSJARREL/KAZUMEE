@@ -1,22 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LoginForm from '@/components/auth/LoginForm';
 import SignupForm from '@/components/auth/SignupForm';
 import styles from './auth.module.css';
 
-export default function AuthPage() {
+function AuthPageContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSignup, setIsSignup] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const params = new URLSearchParams(location.search);
     if (params.get('tab') === 'signup') {
       setIsSignup(true);
     }
-  }, [location.search]);
+  }, [location.search, mounted]);
 
   const handleAuthSuccess = () => {
     navigate('/dashboard');
@@ -25,6 +31,8 @@ export default function AuthPage() {
   const toggleForm = () => {
     setIsSignup(!isSignup);
   };
+
+  if (!mounted) return null;
 
   return (
     <div className={styles.container}>
@@ -65,5 +73,13 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <AuthPageContent />
+    </Suspense>
   );
 }
