@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone } from 'lucide-react';
+import { getApiUrl } from '@/utils/api';
 import styles from './clips.module.css';
 import VerticalPreviewModal from './VerticalPreviewModal';
 
@@ -55,7 +56,7 @@ export default function ClipsPage() {
 
     setBatchExporting(true);
     try {
-      const res = await fetch('http://localhost:8000/api/clips/batch-export', {
+      const res = await fetch('${getApiUrl()}/api/clips/batch-export', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ export default function ClipsPage() {
     setBurningCaption(clip.id);
     setBurningStatus('Burning captions...');
     try {
-      const res = await fetch(`http://localhost:8000/api/clips/${clip.id}/burn-captions`, {
+      const res = await fetch(`${getApiUrl()}/api/clips/${clip.id}/burn-captions`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
       });
@@ -123,7 +124,7 @@ export default function ClipsPage() {
       // Fetch all clips from /api/clips/
       try {
         console.log('Fetching all clips...');
-        const allRes = await fetch('http://localhost:8000/api/clips/?limit=50');
+        const allRes = await fetch('${getApiUrl()}/api/clips/?limit=50');
         console.log('All clips response:', allRes.status);
         if (allRes.ok) {
           const allData = await allRes.json();
@@ -182,7 +183,7 @@ export default function ClipsPage() {
     }
     try {
       // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`http://localhost:8000/dev/clips/${clip.id}/stream`);
+      const response = await fetch(`${getApiUrl()}/dev/clips/${clip.id}/stream`);
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }
@@ -206,7 +207,7 @@ export default function ClipsPage() {
     if (!confirm(`Delete "${clip.title}"?`)) return;
     try {
       // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`http://localhost:8000/dev/clips/${clip.id}`, {
+      const response = await fetch(`${getApiUrl()}/dev/clips/${clip.id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -227,7 +228,7 @@ export default function ClipsPage() {
     setExporting(true);
     try {
       // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`http://localhost:8000/dev/clips/${selectedClip.id}/export`, {
+      const response = await fetch(`${getApiUrl()}/dev/clips/${selectedClip.id}/export`, {
         method: 'POST'
       });
 

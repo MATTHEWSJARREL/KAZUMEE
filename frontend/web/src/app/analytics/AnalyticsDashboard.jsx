@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TrendingUp, Zap, Clock, BarChart3 } from 'lucide-react';
+import { getApiUrl } from '@/utils/api';
 import styles from './analytics.module.css';
 
 export default function AnalyticsDashboard() {
@@ -16,7 +17,7 @@ export default function AnalyticsDashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/clips/analytics/stream-summary');
+      const res = await fetch('${getApiUrl()}/api/clips/analytics/stream-summary');
       if (!res.ok) throw new Error('Failed to fetch analytics');
       const data = await res.json();
       setAnalytics(data);

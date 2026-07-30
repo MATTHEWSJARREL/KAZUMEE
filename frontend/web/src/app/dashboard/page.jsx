@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, MoreVertical } from 'lucide-react';
 import { useMomentWebSocket } from '@/hooks/useMomentWebSocket';
+import { getApiUrl } from '@/utils/api';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
@@ -23,11 +24,11 @@ export default function Dashboard() {
     setTestingMoment(true);
     try {
       // Reset detector
-      await fetch('http://localhost:8000/api/moments/reset', { method: 'POST' });
+      await fetch(`${getApiUrl()}/api/moments/reset`, { method: 'POST' });
 
       // Send 100 chat messages
       for (let i = 1; i <= 100; i++) {
-        fetch('http://localhost:8000/api/moments/chat-event', {
+        fetch(`${getApiUrl()}/api/moments/chat-event`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -40,7 +41,7 @@ export default function Dashboard() {
 
       // Wait a bit then send audio peak
       await new Promise(resolve => setTimeout(resolve, 2000));
-      await fetch('http://localhost:8000/api/moments/audio-event', {
+      await fetch(`${getApiUrl()}/api/moments/audio-event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'test', peak_value: 0.95 })
@@ -80,7 +81,7 @@ export default function Dashboard() {
   const fetchClipsAndStatus = useCallback(async () => {
     try {
       // Fetch status
-      const statusRes = await fetch('http://localhost:8000/api/moments/status');
+      const statusRes = await fetch(`${getApiUrl()}/api/moments/status`);
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setMomentStatus(statusData.detector);
@@ -90,7 +91,7 @@ export default function Dashboard() {
 
       // Fetch all clips from /api/clips/ endpoint
       try {
-        const allClipsRes = await fetch('http://localhost:8000/api/clips/?limit=50');
+        const allClipsRes = await fetch(`${getApiUrl()}/api/clips/?limit=50`);
         if (allClipsRes.ok) {
           const allClipsData = await allClipsRes.json();
           console.log('✅ All clips fetched:', allClipsData.clips?.length || 0);

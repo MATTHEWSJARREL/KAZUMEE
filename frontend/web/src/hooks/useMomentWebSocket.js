@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getApiUrl } from '@/utils/api';
 
 /**
  * Custom hook for real-time moment detection via WebSocket
@@ -15,9 +16,10 @@ export function useMomentWebSocket(onMomentDetected, onStatusUpdate) {
   useEffect(() => {
     const connectWebSocket = () => {
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Connect directly to backend, not through proxy
-        const wsUrl = `${protocol}//localhost:8000/api/moments/ws/updates`;
+        const apiUrl = getApiUrl();
+        const wsProtocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:';
+        const host = apiUrl.replace('https://', '').replace('http://', '');
+        const wsUrl = `${wsProtocol}//${host}/api/moments/ws/updates`;
 
         wsRef.current = new WebSocket(wsUrl);
 
