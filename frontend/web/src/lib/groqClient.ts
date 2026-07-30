@@ -3,10 +3,15 @@
  * Routes requests through backend to avoid CORS issues
  */
 
-const BACKEND_URL = typeof window !== "undefined"
-  ? `${window.location.protocol}//${window.location.hostname}:8000`
-  : "http://localhost:8000";
-const GROQ_API_URL = `${BACKEND_URL}/api/groq/chat`;
+function getBackendUrl() {
+  if (typeof window === "undefined") return "http://localhost:8000";
+  const apiUrl = process.env.REACT_APP_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+  return apiUrl;
+}
+
+function getGroqApiUrl() {
+  return `${getBackendUrl()}/api/groq/chat`;
+}
 
 interface GroqMessage {
   role: "user" | "assistant" | "system";
@@ -43,7 +48,7 @@ export async function askGroq(
       { role: "user", content: userMessage }
     ];
 
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(getGroqApiUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
