@@ -1,31 +1,31 @@
 const resolveApiBase = () => {
   // Try React App env var first (for Vercel)
-  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  if (import.meta.env.REACT_APP_API_URL) return import.meta.env.REACT_APP_API_URL;
   // Then try Next.js env vars
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (import.meta.env.NEXT_PUBLIC_API_URL) return import.meta.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://127.0.0.1:8000";
 
   const host = window.location.hostname || "127.0.0.1";
   const protocol = window.location.protocol === "https:" ? "https" : "http";
-  const port = process.env.NEXT_PUBLIC_API_PORT || "8000";
+  const port = import.meta.env.NEXT_PUBLIC_API_PORT || "8000";
   return `${protocol}://${host}:${port}`;
 };
 
 const resolveWsBase = () => {
   // Try React App env var first (for Vercel)
-  if (process.env.REACT_APP_API_URL) {
-    const apiUrl = process.env.REACT_APP_API_URL;
+  if (import.meta.env.REACT_APP_API_URL) {
+    const apiUrl = import.meta.env.REACT_APP_API_URL;
     const protocol = apiUrl.startsWith("https") ? "wss" : "ws";
     const host = apiUrl.replace("https://", "").replace("http://", "");
     return `${protocol}://${host}`;
   }
   // Then try Next.js env vars
-  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (import.meta.env.NEXT_PUBLIC_WS_URL) return import.meta.env.NEXT_PUBLIC_WS_URL;
   if (typeof window === "undefined") return "ws://127.0.0.1:8000";
 
   const host = window.location.hostname || "127.0.0.1";
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const port = process.env.NEXT_PUBLIC_API_PORT || "8000";
+  const port = import.meta.env.NEXT_PUBLIC_API_PORT || "8000";
   return `${protocol}://${host}:${port}`;
 };
 
