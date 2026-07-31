@@ -114,6 +114,13 @@ function ClientOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+const RoleGuardWrapper = () => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return <RoleGuard />;
+};
+
 function RoleGuard() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -375,7 +382,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   <RealtimeProvider>
                     <ClipSearchProvider>
                       <ErrorBoundaryWrapper>
-                        <RoleGuard />
+                        <RoleGuardWrapper />
                         {children}
                       </ErrorBoundaryWrapper>
                       
