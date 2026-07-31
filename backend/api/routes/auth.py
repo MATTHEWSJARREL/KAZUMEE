@@ -438,16 +438,24 @@ async def me(request: Request):
     streamer_id = get_streamer_id_for_user(user)
     db = SessionLocal()
     try:
-        _ensure_auth_tables(db)
-        email_verified = _get_email_verified(db, user.id)
+        try:
+            _ensure_auth_tables(db)
+            email_verified = _get_email_verified(db, user.id)
 
-        onboarding_complete = None
-        if streamer_id is not None:
-            try:
-                streamer = db.query(StreamerModel).filter(StreamerModel.id == streamer_id).first()
-                onboarding_complete = bool(getattr(streamer, "onboarding_complete", False)) if streamer else False
-            except Exception:
+            onboarding_complete = None
+            if streamer_id is not None:
+                try:
+                    streamer = db.query(StreamerModel).filter(StreamerModel.id == streamer_id).first()
+                    onboarding_complete = bool(getattr(streamer, "onboarding_complete", False)) if streamer else False
+                except Exception:
+                    onboarding_complete = None
+        except Exception as e:
+            # MVP mode: if database tables don't exist, use defaults
+            if "no such table" in str(e).lower():
+                email_verified = False
                 onboarding_complete = None
+            else:
+                raise
     finally:
         db.close()
 
