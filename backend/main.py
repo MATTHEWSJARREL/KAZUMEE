@@ -713,10 +713,7 @@ def _allowed_cors_origins() -> list[str]:
     if configured:
         return configured
     if IS_PROD:
-        get_logger("CORS").warning(
-            "FRONTEND_ORIGINS is empty in production; no origins are allowed until configured."
-        )
-        return []
+        return ["https://kazumee.vercel.app"]
     return [
         "http://localhost:4000",
         "http://127.0.0.1:4000",
