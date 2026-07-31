@@ -20,7 +20,7 @@ export default function LoginForm({ onSuccess, onToggle }) {
       if (email && password) {
         // Dev mode: Store mock auth token and bypass flag
         const token = 'mock-token-' + Date.now();
-        localStorage.setItem('kazumi_auth_token', token);
+        localStorage.setItem('authToken', token);
         localStorage.setItem('kazumi_auth_bypass', 'true');
         localStorage.setItem('userRole', 'streamer');
         localStorage.setItem('streamerEmail', email);
