@@ -18,8 +18,8 @@ export default defineConfig({
     // Required by react-router-hono server output which uses top-level await.
     target: 'esnext',
   },
-  // Keep them available via import.meta.env.NEXT_PUBLIC_*
-  envPrefix: 'NEXT_PUBLIC_',
+  // Support both REACT_APP_* and NEXT_PUBLIC_* env vars
+  envPrefix: ['REACT_APP_', 'NEXT_PUBLIC_'],
   optimizeDeps: {
     // Explicitly include fast-glob, since it gets dynamically imported and we
     // don't want that to cause a re-bundle.
