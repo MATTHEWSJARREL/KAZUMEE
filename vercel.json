@@ -1,4 +1,7 @@
 {
-  "buildCommand": "bash build.sh",
+  "buildCommand": "npm --prefix frontend/web run build",
+  "env": {
+    "REACT_APP_API_URL": "https://kazumee-production.up.railway.app"
+  },
   "outputDirectory": "frontend/web/build/client"
 }
