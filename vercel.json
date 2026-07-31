@@ -1,4 +1,5 @@
 {
-  "buildCommand": "cd frontend/web && REACT_APP_API_URL=https://kazumee-production.up.railway.app npm run build",
-  "outputDirectory": "frontend/web/build/client"
+  "buildCommand": "REACT_APP_API_URL=https://kazumee-production.up.railway.app npm run build",
+  "outputDirectory": "build/client",
+  "rootDirectory": "frontend/web"
 }
