@@ -205,23 +205,29 @@ def get_streamer_id_for_user(user: Optional[User]) -> Optional[int]:
         return None
     db = SessionLocal()
     try:
-        if user.role == "streamer":
-            streamer = db.query(Streamer).filter(Streamer.user_id == user.id).first()
-            return streamer.id if streamer else None
-        if user.role == "viewer":
-            try:
-                viewer = db.query(Viewer).filter(Viewer.user_id == user.id).first()
-            except ProgrammingError:
-                # Fallback for partially-migrated databases.
-                db.rollback()
+        try:
+            if user.role == "streamer":
+                streamer = db.query(Streamer).filter(Streamer.user_id == user.id).first()
+                return streamer.id if streamer else None
+            if user.role == "viewer":
                 try:
-                    db.execute(text("ALTER TABLE viewers ADD COLUMN IF NOT EXISTS preferences_json json"))
-                    db.commit()
-                except Exception:
+                    viewer = db.query(Viewer).filter(Viewer.user_id == user.id).first()
+                except ProgrammingError:
+                    # Fallback for partially-migrated databases.
                     db.rollback()
-                viewer = db.query(Viewer).filter(Viewer.user_id == user.id).first()
-            return viewer.active_streamer_id if viewer else None
-        return None
+                    try:
+                        db.execute(text("ALTER TABLE viewers ADD COLUMN IF NOT EXISTS preferences_json json"))
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+                    viewer = db.query(Viewer).filter(Viewer.user_id == user.id).first()
+                return viewer.active_streamer_id if viewer else None
+            return None
+        except Exception as e:
+            # If database tables don't exist (MVP mode), return mock streamer ID
+            if "no such table" in str(e).lower():
+                return 1
+            raise
     finally:
         db.close()
 
