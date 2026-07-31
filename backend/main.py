@@ -705,15 +705,19 @@ _init_error_tracking()
 
 
 def _allowed_cors_origins() -> list[str]:
+    raw_origins = os.getenv("FRONTEND_ORIGINS", "")
     configured = [
         origin.strip()
-        for origin in (os.getenv("FRONTEND_ORIGINS", "")).split(",")
+        for origin in raw_origins.split(",")
         if origin.strip()
     ]
+    logger = get_logger("CORS")
+    logger.info(f"FRONTEND_ORIGINS raw: '{raw_origins}'")
+    logger.info(f"FRONTEND_ORIGINS parsed: {configured}")
     if configured:
         return configured
     if IS_PROD:
-        get_logger("CORS").warning(
+        logger.warning(
             "FRONTEND_ORIGINS is empty in production; no origins are allowed until configured."
         )
         return []
