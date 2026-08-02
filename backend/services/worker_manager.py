@@ -50,9 +50,38 @@ class ClipWorker:
         print(f"   Chat velocity: {moment_data.get('chat_velocity', 0):.1f} msg/s")
         print(f"   Audio peak: {moment_data.get('audio_peak', 0):.2f}")
 
-        # TODO: Generate clip here
-        # For now, just count moments
-        # await self._generate_clip(moment_data)
+        # Generate clip for this moment
+        await self._generate_clip(moment_data)
+
+    async def _generate_clip(self, moment_data: dict):
+        """Generate a clip from a detected moment"""
+        try:
+            # Import here to avoid circular imports
+            from backend.core.clip_generator_service import get_clip_generator
+
+            generator = get_clip_generator()
+            if not generator:
+                print(f"⚠️ Worker {self.worker_id}: Clip generator not available")
+                return
+
+            # Create a DetectedMoment object for the generator
+            from backend.core.moment_detector import DetectedMoment
+            moment = DetectedMoment(
+                moment_id=moment_data.get("moment_id", f"moment_{self.worker_id}"),
+                timestamp=moment_data.get("timestamp", 0),
+                chat_velocity=moment_data.get("chat_velocity", 0),
+                audio_peak=moment_data.get("audio_peak", 0),
+                combined_score=moment_data.get("combined_score", 0),
+                context=moment_data.get("context", "Detected moment")
+            )
+
+            # Generate the clip
+            await generator.on_moment_detected(moment)
+            self.clips_generated += 1
+            print(f"✂️ Worker {self.worker_id} generated clip #{self.clips_generated}")
+
+        except Exception as e:
+            print(f"❌ Worker {self.worker_id} clip generation failed: {e}")
 
     async def on_moment_detected(self, moment_data: dict):
         """Called when a moment is detected - queues it for processing"""
