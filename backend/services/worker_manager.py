@@ -17,6 +17,7 @@ class ClipWorker:
         self.moments_detected = 0
         self.clips_generated = 0
         self.task: Optional[asyncio.Task] = None
+        self.moment_queue: asyncio.Queue = asyncio.Queue()  # Queue for incoming moments
 
     async def start(self):
         """Start the worker loop"""
@@ -24,18 +25,39 @@ class ClipWorker:
         self.task = asyncio.create_task(self._run())
 
     async def _run(self):
-        """Main worker loop - would do actual clipping here"""
+        """Main worker loop - processes detected moments"""
         try:
             while self.is_running:
-                # TODO: Connect to stream data
-                # TODO: Detect moments (chat + audio)
-                # TODO: Generate clips
-                # For now, just keep alive
-                await asyncio.sleep(5)
+                try:
+                    # Wait for moments with 5 second timeout
+                    moment_data = await asyncio.wait_for(
+                        self.moment_queue.get(),
+                        timeout=5.0
+                    )
+                    await self._process_moment(moment_data)
+                except asyncio.TimeoutError:
+                    # No moments detected in 5 seconds, just keep alive
+                    pass
         except asyncio.CancelledError:
             print(f"🛑 Worker {self.worker_id} cancelled")
         except Exception as e:
             print(f"❌ Worker {self.worker_id} error: {e}")
+
+    async def _process_moment(self, moment_data: dict):
+        """Process a detected moment"""
+        self.moments_detected += 1
+        print(f"📍 Worker {self.worker_id} detected moment #{self.moments_detected}")
+        print(f"   Chat velocity: {moment_data.get('chat_velocity', 0):.1f} msg/s")
+        print(f"   Audio peak: {moment_data.get('audio_peak', 0):.2f}")
+
+        # TODO: Generate clip here
+        # For now, just count moments
+        # await self._generate_clip(moment_data)
+
+    async def on_moment_detected(self, moment_data: dict):
+        """Called when a moment is detected - queues it for processing"""
+        if self.is_running:
+            await self.moment_queue.put(moment_data)
 
     async def shutdown(self):
         """Graceful shutdown"""
@@ -117,6 +139,22 @@ class WorkerManager:
             channel_id: worker.to_dict()
             for channel_id, worker in self.workers.items()
         }
+
+    async def broadcast_moment(self, moment_data: dict, channel_id: Optional[str] = None):
+        """
+        Broadcast a detected moment to active workers.
+        If channel_id is specified, only send to that worker.
+        Otherwise send to all active workers.
+        """
+        if channel_id:
+            # Send to specific worker
+            worker = self.workers.get(channel_id)
+            if worker:
+                await worker.on_moment_detected(moment_data)
+        else:
+            # Broadcast to all active workers
+            for worker in self.workers.values():
+                await worker.on_moment_detected(moment_data)
 
     async def shutdown_all(self):
         """Shutdown all workers"""

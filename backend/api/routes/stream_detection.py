@@ -81,3 +81,45 @@ async def test_stream_end(channel_id: str = "test_channel_1"):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/test/moment")
+async def test_moment(
+    channel_id: str = "test_1",
+    chat_velocity: float = 8.5,
+    audio_peak: float = 0.85
+):
+    """
+    TESTING ONLY: Simulate a moment being detected
+    This broadcasts to active workers WITHOUT needing real chat/audio data
+    """
+    try:
+        manager = get_worker_manager()
+
+        moment_data = {
+            "moment_id": f"test_moment_{int(__import__('time').time() * 1000)}",
+            "timestamp": __import__('time').time(),
+            "chat_velocity": chat_velocity,
+            "audio_peak": audio_peak,
+            "combined_score": (chat_velocity / 5.0 * 50) + (audio_peak / 0.6 * 50),
+            "context": f"TEST: Chat spike ({chat_velocity:.1f} msg/s) + Audio peak ({audio_peak:.2f})"
+        }
+
+        await manager.broadcast_moment(moment_data, channel_id=channel_id)
+
+        worker = manager.get_worker(channel_id)
+        if not worker:
+            return {
+                "status": "warning",
+                "message": f"No active worker for channel {channel_id}",
+                "channel_id": channel_id
+            }
+
+        return {
+            "status": "ok",
+            "message": f"Moment broadcast to worker {worker.worker_id}",
+            "channel_id": channel_id,
+            "worker_id": worker.worker_id,
+            "moment_data": moment_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -526,6 +526,25 @@ async def lifespan(app: FastAPI):
         detector = get_detector()
         detector.on_moment_detected(clip_generator.on_moment_detected)
         print("[OK] Detector wired to Clip Generator Service")
+
+        # Wire detector to worker manager (broadcast moments to active workers)
+        from backend.services.worker_manager import get_worker_manager
+        worker_manager = get_worker_manager()
+
+        async def on_worker_moment(moment):
+            """Broadcast detected moments to active workers"""
+            moment_data = {
+                "moment_id": moment.moment_id,
+                "timestamp": moment.timestamp,
+                "chat_velocity": moment.chat_velocity,
+                "audio_peak": moment.audio_peak,
+                "combined_score": moment.combined_score,
+                "context": moment.context,
+            }
+            await worker_manager.broadcast_moment(moment_data)
+
+        detector.on_moment_detected(on_worker_moment)
+        print("[OK] Detector wired to Worker Manager")
     except Exception as e:
         print(f"[WARN] Clip Generator Service failed: {e}")
         app.state.clip_generator = None
