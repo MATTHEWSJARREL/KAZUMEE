@@ -32,6 +32,7 @@ from backend.api.routes import moment_detection as moment_detection_router
 from backend.api.routes import settings as settings_router
 from backend.api.routes import post_stream_report as post_stream_report_router
 from backend.api.routes import groq_proxy as groq_proxy_router
+from backend.api.routes import stream_detection as stream_detection_router
 # Removed: companion router (v1.1+ feature, not needed for v1)
 from backend.api.routes import clip_generator as clip_generator_router
 
@@ -547,6 +548,18 @@ async def lifespan(app: FastAPI):
         print(f"[WARN] OBS Audio Poller failed: {e}")
         app.state.audio_poller = None
 
+    # Initialize Stream Monitor (detects when streamers go live)
+    try:
+        from backend.services.stream_monitor import get_stream_monitor
+
+        monitor = get_stream_monitor()
+        app.state.stream_monitor = monitor
+        asyncio.create_task(monitor.start())
+        print("[OK] Stream Monitor started - detecting live streams")
+    except Exception as e:
+        print(f"[WARN] Stream Monitor failed: {e}")
+        app.state.stream_monitor = None
+
     yield  # This is where the app actually runs
 
     # --- SHUTDOWN LOGIC ---
@@ -559,6 +572,23 @@ async def lifespan(app: FastAPI):
             print("[OK] OBS Audio Poller stopped")
         except Exception as e:
             print(f"[WARN] Audio Poller shutdown error: {e}")
+
+    # Stop Stream Monitor
+    if hasattr(app.state, "stream_monitor") and app.state.stream_monitor:
+        try:
+            await app.state.stream_monitor.stop()
+            print("[OK] Stream Monitor stopped")
+        except Exception as e:
+            print(f"[WARN] Stream Monitor shutdown error: {e}")
+
+    # Shutdown all workers
+    try:
+        from backend.services.worker_manager import get_worker_manager
+        manager = get_worker_manager()
+        await manager.shutdown_all()
+        print("[OK] All workers shut down")
+    except Exception as e:
+        print(f"[WARN] Worker shutdown error: {e}")
 
     # Close Event Bus
     if hasattr(app.state, "event_bus") and app.state.event_bus:
@@ -932,6 +962,7 @@ app.include_router(moment_detection_router.router, tags=["MomentDetection"])
 app.include_router(settings_router.router, prefix="", tags=["Settings"])
 app.include_router(post_stream_report_router.router, prefix="", tags=["PostStreamReport"])
 app.include_router(groq_proxy_router.router, tags=["Groq"])
+app.include_router(stream_detection_router.router, tags=["StreamDetection"])
 # Removed: companion_router (v1.1+ feature, not needed for v1)
 app.include_router(clip_generator_router.router, tags=["ClipGenerator"])
 app.include_router(obs_router.router, tags=["OBS"])
