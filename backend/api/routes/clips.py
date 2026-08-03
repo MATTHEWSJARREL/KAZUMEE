@@ -110,6 +110,37 @@ def check_clips_generated():
 		return {"status": "error", "error": str(e)}
 
 
+@router.post("/test-create")
+def test_create_clip():
+	"""Simple test endpoint to create a clip directly (dev only)"""
+	try:
+		db = SessionLocal()
+		clip = Clip(
+			file_path="backend/data/test_videos/test_stream.mp4",
+			requested_by_type="auto_detection",
+			requested_by_name="Test Generator",
+			title="AUTO: Test Moment Clip",
+			description="Auto-generated test clip",
+			stream_session_id=1,
+			streamer_id=1,
+			status="pending",
+			quality_score=0.85,
+			duration_seconds=45,
+		)
+		db.add(clip)
+		db.commit()
+		db.refresh(clip)
+		db.close()
+
+		return {
+			"status": "ok",
+			"clip_id": clip.id,
+			"message": f"Test clip created with ID {clip.id}"
+		}
+	except Exception as e:
+		return {"status": "error", "error": str(e)}
+
+
 @router.get("/pending")
 def get_pending_clips():
 	"""Get pending clips - dev mode, returns all pending clips"""
