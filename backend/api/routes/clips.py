@@ -374,6 +374,25 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 	return {"status": "success", "message": f"Clip {req.action}d successfully"}
 
 
+@router.get("/storage/stats")
+def get_storage_stats(request: Request):
+	"""Get clip storage statistics (admin/monitoring)"""
+	from backend.core.clip_storage import get_clip_storage
+
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	storage = get_clip_storage()
+	stats = storage.get_storage_stats()
+
+	return {
+		"status": "ok",
+		"storage": stats,
+		"warning": "Storage growing - consider cleanup/archival if > 10GB" if stats["total_size_mb"] > 10000 else None
+	}
+
+
 # ==============================================================================
 # PARAMETERIZED ROUTES (with {clip_id}, etc) - COME AFTER LITERAL ROUTES
 # ==============================================================================
@@ -436,25 +455,6 @@ async def batch_export_clips(request: Request, db: Session = Depends(get_db)):
 		"total_jobs": len(export_jobs),
 		"clips_exported": len(clips),
 		"platforms": list(set(platforms))
-	}
-
-
-@router.get("/storage/stats")
-def get_storage_stats(request: Request):
-	"""Get clip storage statistics (admin/monitoring)"""
-	from backend.core.clip_storage import get_clip_storage
-
-	user = get_current_user(request, required=True)
-	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
-
-	storage = get_clip_storage()
-	stats = storage.get_storage_stats()
-
-	return {
-		"status": "ok",
-		"storage": stats,
-		"warning": "Storage growing - consider cleanup/archival if > 10GB" if stats["total_size_mb"] > 10000 else None
 	}
 
 
