@@ -78,6 +78,25 @@ async def detector_status():
     return {
         "status": "ok",
         "detector": status,
+        "callbacks_registered": len(detector._callbacks),  # Debug: show how many callbacks
+    }
+
+@router.get("/debug/callbacks")
+async def debug_callbacks():
+    """Debug endpoint: show what callbacks are registered"""
+    from backend.core.moment_detector import get_detector
+    detector = get_detector()
+
+    callback_names = []
+    for cb in detector._callbacks:
+        callback_names.append({
+            "function": cb.__name__ if hasattr(cb, '__name__') else str(type(cb)),
+            "is_coroutine": "async" if asyncio.iscoroutinefunction(cb) else "sync"
+        })
+
+    return {
+        "total_callbacks": len(detector._callbacks),
+        "callbacks": callback_names,
     }
 
 

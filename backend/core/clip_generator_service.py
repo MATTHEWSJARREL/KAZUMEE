@@ -40,26 +40,20 @@ class ClipGeneratorService:
         logger.info("Clip Generator Service initialized")
 
     def on_moment_detected(self, moment: DetectedMoment):
-        """Callback when moment is detected - with aggressive logging to catch silent failures"""
-        # LOG BEFORE EVERYTHING - this proves callback was reached
+        """Callback when moment is detected"""
         logger.warning(f"🎬 TRIGGER FIRED: moment_id={moment.moment_id} score={moment.combined_score:.2f}")
-        logger.warning(f"   context={moment.context[:50]}")
 
         if self.is_processing:
-            logger.warning(f"⏭️  Skipping (already processing)")
+            logger.warning(f"Skipping (already processing)")
             return
 
         self.is_processing = True
         try:
-            logger.warning(f"📝 Creating clip record...")
-            # Call the exact same method the test endpoint uses
+            # Create clip record
             self._create_clip_record(moment)
-            logger.warning(f"✅ CLIP CREATED: {moment.moment_id}")
+            logger.warning(f"✅ CLIP CREATED from moment")
         except Exception as e:
-            # FULL TRACEBACK - this is what was missing
-            logger.error(f"❌ AUTO-CLIP FAILED:\n{traceback.format_exc()}")
-            print(f"[ERROR] Clip creation failed: {e}")
-            print(traceback.format_exc())
+            logger.error(f"❌ Clip creation failed: {traceback.format_exc()}")
         finally:
             self.is_processing = False
 
