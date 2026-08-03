@@ -52,6 +52,104 @@ class ClipGeneratorService:
 
         self.is_processing = True
         try:
+            # Quick path: Create clip record immediately, then do async processing
+            self._create_clip_record(moment)
+            logger.info(f"[OK] Clip record created for moment {moment.moment_id}")
+            return
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to create clip record: {e}", exc_info=True)
+            return
+        finally:
+            self.is_processing = False
+
+    def _create_clip_record(self, moment: DetectedMoment):
+        """Create a clip record in the database from a detected moment"""
+        try:
+            db = SessionLocal()
+            try:
+                # Ensure streamer_id=1 exists
+                streamer_id = 1
+                streamer = db.query(text("SELECT 1 FROM streamers WHERE id = :id")).params(id=streamer_id).first()
+                if not streamer:
+                    from backend.database.models.streamer import Streamer
+                    default_streamer = Streamer(id=streamer_id, username="default", display_name="Default Streamer", platform="kazumi")
+                    db.add(default_streamer)
+                    db.flush()
+
+                # Ensure stream_session_id=1 exists
+                session = db.query(text("SELECT 1 FROM stream_sessions WHERE id = 1")).first()
+                if not session:
+                    from backend.database.models.stream_session import StreamSession
+                    default_session = StreamSession(id=1, streamer_id=streamer_id, status="active")
+                    db.add(default_session)
+                    db.flush()
+
+                # Determine title based on score
+                title_map = {
+                    (80, 100): "EPIC MOMENT",
+                    (60, 80): "HIGHLIGHT",
+                    (40, 60): "INTERESTING MOMENT",
+                    (0, 40): "MOMENT DETECTED",
+                }
+
+                title = "MOMENT DETECTED"
+                for (low, high), title_text in title_map.items():
+                    if low <= moment.combined_score < high:
+                        title = title_text
+                        break
+
+                # Create clip record
+                db.execute(text("""
+                    INSERT INTO clips (
+                        title, description, file_path, status,
+                        requested_by_type, requested_by_name,
+                        duration_seconds, quality_score,
+                        stream_session_id, streamer_id
+                    ) VALUES (
+                        :title, :description, :file_path, :status,
+                        :requested_by_type, :requested_by_name,
+                        :duration_seconds, :quality_score,
+                        :stream_session_id, :streamer_id
+                    )
+                """), {
+                    "title": title,
+                    "description": moment.context,
+                    "file_path": f"moment_clip_{moment.moment_id}.mp4",
+                    "status": "pending",
+                    "requested_by_type": "auto_detection",
+                    "requested_by_name": "Kazumee AI",
+                    "duration_seconds": 45,
+                    "quality_score": min(moment.combined_score / 100, 1.0),
+                    "stream_session_id": 1,
+                    "streamer_id": 1
+                })
+                db.commit()
+                logger.info(f"[OK] Auto-clip created from moment: {title} (score: {moment.combined_score:.0f}/100)")
+
+            except Exception as e:
+                logger.error(f"Failed to create clip record: {e}")
+                db.rollback()
+                raise
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"[ERROR] Clip record creation failed: {e}", exc_info=True)
+            raise
+
+    async def _old_on_moment_detected_with_video_extraction(self, moment: DetectedMoment):
+        """OLD: Callback with video extraction (keeping for reference)"""
+        try:
+            print(f"[CLIP_GEN] Callback invoked for moment {moment.moment_id}")
+        except:
+            pass
+        logger.info(f"[CLIP] Generating clip for moment: {moment.moment_id}")
+
+        if self.is_processing:
+            logger.info(f"Skipping moment (processing already in progress)")
+            return
+
+        self.is_processing = True
+        try:
             logger.info(f"Starting clip generation...")
 
             # Extract clip from video source (OBS replay buffer or test video)
