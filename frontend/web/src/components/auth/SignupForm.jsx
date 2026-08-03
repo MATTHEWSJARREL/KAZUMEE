@@ -28,40 +28,68 @@ export default function SignupForm({ onSuccess, onToggle }) {
     setLoading(true);
 
     try {
+      if (!formData.streamerName || !formData.email || !formData.password) {
+        setError('Please fill in all fields');
+        setLoading(false);
+        return;
+      }
+
       if (formData.password !== formData.confirmPassword) {
         setError('Passwords do not match');
         setLoading(false);
         return;
       }
 
-      if (formData.streamerName && formData.email && formData.password) {
-        // Store auth token
-        const token = 'mock-token-' + Date.now();
-        localStorage.setItem('kazumi_auth_token', token);
-        localStorage.setItem('kazumi_auth_bypass', 'true');
-        localStorage.setItem('userRole', 'streamer');
-        localStorage.setItem('streamerEmail', formData.email);
-        localStorage.setItem('streamerName', formData.streamerName);
-
-        console.log('✓ Signup stored:', {
-          token,
-          role: 'streamer',
-          email: formData.email,
-          name: formData.streamerName,
-        });
-
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      } else {
-        setError('Please fill in all fields');
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
         setLoading(false);
+        return;
+      }
+
+      // Call real backend registration endpoint
+      const apiUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          role: 'streamer'
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.detail || 'Signup failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      const token = data.token;
+      const user = data.user;
+
+      // Store real auth token
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userRole', user.role);
+      localStorage.setItem('streamerEmail', user.email);
+      localStorage.setItem('streamerName', formData.streamerName);
+
+      console.log('✓ Real signup successful:', {
+        token: token.substring(0, 20) + '...',
+        email: user.email,
+        role: user.role
+      });
+
+      // Navigate to dashboard
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       console.error('Signup error:', err);
-      setError('Signup failed. Please try again.');
+      setError('Network error. Please try again.');
       setLoading(false);
     }
   };

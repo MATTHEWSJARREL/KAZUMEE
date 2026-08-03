@@ -17,37 +17,52 @@ export default function LoginForm({ onSuccess, onToggle }) {
     setLoading(true);
 
     try {
-      if (email && password) {
-        // Dev mode: Store mock auth token and bypass flag
-        const token = 'mock-token-' + Date.now();
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('kazumi_auth_bypass', 'true');
-        localStorage.setItem('userRole', 'streamer');
-        localStorage.setItem('streamerEmail', email);
-        localStorage.setItem('streamerName', email.split('@')[0]);
-
-        console.log('✓ Auth stored:', {
-          token,
-          role: 'streamer',
-          email,
-          bypass: true
-        });
-
-        // Call success callback and navigate
-        if (onSuccess) {
-          console.log('Calling onSuccess...');
-          onSuccess();
-        } else {
-          console.log('Direct navigation to /dashboard');
-          window.location.href = '/dashboard';
-        }
-      } else {
+      if (!email || !password) {
         setError('Please fill in all fields');
         setLoading(false);
+        return;
+      }
+
+      // Call real backend login endpoint
+      const apiUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.detail || 'Login failed. Please check your credentials.');
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      const token = data.token;
+      const user = data.user;
+
+      // Store real auth token
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userRole', user.role);
+      localStorage.setItem('streamerEmail', user.email);
+      localStorage.setItem('streamerName', user.email.split('@')[0]);
+
+      console.log('✓ Real auth successful:', {
+        token: token.substring(0, 20) + '...',
+        email: user.email,
+        role: user.role
+      });
+
+      // Navigate to dashboard
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/dashboard');
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Login failed. Please try again.');
+      setError('Network error. Please try again.');
       setLoading(false);
     }
   };
