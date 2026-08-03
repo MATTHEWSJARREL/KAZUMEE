@@ -439,6 +439,25 @@ async def batch_export_clips(request: Request, db: Session = Depends(get_db)):
 	}
 
 
+@router.get("/storage/stats")
+def get_storage_stats(request: Request):
+	"""Get clip storage statistics (admin/monitoring)"""
+	from backend.core.clip_storage import get_clip_storage
+
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	storage = get_clip_storage()
+	stats = storage.get_storage_stats()
+
+	return {
+		"status": "ok",
+		"storage": stats,
+		"warning": "Storage growing - consider cleanup/archival if > 10GB" if stats["total_size_mb"] > 10000 else None
+	}
+
+
 @router.get("/analytics/stream-summary")
 def get_stream_analytics(request: Request, db: Session = Depends(get_db)):
 	"""Get end-of-stream analytics: moments detected, clips generated, quality stats"""
@@ -535,6 +554,74 @@ def delete_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 	return {"status": "success", "message": f"Clip {clip_id} deleted successfully"}
 
 
+@router.get("/stream/{clip_id:int}")
+def stream_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
+	"""Stream a clip with HTTP Range support (for video player seeking)."""
+	from fastapi.responses import FileResponse, StreamingResponse
+
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
+
+	clip = db.query(Clip).filter(Clip.id == clip_id, Clip.streamer_id == streamer_id).first()
+	if not clip or not clip.file_path:
+		raise HTTPException(status_code=404, detail="Clip not found")
+
+	if not os.path.exists(clip.file_path):
+		raise HTTPException(status_code=404, detail="Clip file not found on disk")
+
+	file_size = os.path.getsize(clip.file_path)
+	range_header = request.headers.get("range")
+
+	# Handle Range requests (for seeking in video players)
+	if range_header:
+		try:
+			# Parse range header (e.g., "bytes=0-1023")
+			range_value = range_header.replace("bytes=", "")
+			start, end = range_value.split("-")
+			start = int(start) if start else 0
+			end = int(end) if end else file_size - 1
+
+			if start > end or start >= file_size:
+				raise HTTPException(status_code=416, detail="Range Not Satisfiable")
+
+			# Return 206 Partial Content with Range headers
+			def file_iter(file_path: str, start: int, end: int, chunk_size: int = 65536):
+				with open(file_path, "rb") as f:
+					f.seek(start)
+					remaining = end - start + 1
+					while remaining > 0:
+						chunk = f.read(min(chunk_size, remaining))
+						if not chunk:
+							break
+						remaining -= len(chunk)
+						yield chunk
+
+			return StreamingResponse(
+				file_iter(clip.file_path, start, end),
+				status_code=206,
+				media_type="video/mp4",
+				headers={
+					"Content-Range": f"bytes {start}-{end}/{file_size}",
+					"Content-Length": str(end - start + 1),
+					"Accept-Ranges": "bytes",
+				},
+			)
+		except (ValueError, IndexError):
+			pass  # Fall through to full file response
+
+	# Return full file
+	return FileResponse(
+		clip.file_path,
+		media_type="video/mp4",
+		headers={"Accept-Ranges": "bytes"},
+	)
+
+
 @router.get("/download/{clip_id:int}")
 def download_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 	"""Download a clip file as attachment (for saving to disk)."""
@@ -592,7 +679,9 @@ def get_vertical_preview(clip_id: int, request: Request, db: Session = Depends(g
 
 @router.get("/{clip_id:int}")
 def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
-	"""Get detailed clip information"""
+	"""Get detailed clip information with streaming/download URLs"""
+	from backend.core.clip_storage import get_clip_storage
+
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
 		raise HTTPException(status_code=403, detail="Streamer role required")
@@ -605,11 +694,22 @@ def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 	if not clip:
 		raise HTTPException(status_code=404, detail="Clip not found")
 
+	# Get storage info
+	storage = get_clip_storage()
+	file_exists = storage.verify_clip_exists(clip.file_path)
+	file_size = storage.get_clip_size(clip.file_path) if file_exists else 0
+
+	# Get base URL for streaming
+	base_url = f"{request.base_url}".rstrip("/")
+
 	return {
 		"id": clip.id,
 		"title": clip.title,
 		"description": clip.description,
 		"file_path": clip.file_path,
+		"file_exists": file_exists,
+		"file_size": file_size,
+		"file_size_mb": round(file_size / 1024 / 1024, 2) if file_size else 0,
 		"thumbnail_path": clip.thumbnail_path,
 		"status": clip.status,
 		"is_public": clip.is_public,
@@ -628,5 +728,10 @@ def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 		"export_status": clip.export_status,
 		"export_preset": clip.export_preset,
 		"export_path": clip.export_path,
-		"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None
+		"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+		# URLs for media access
+		"urls": {
+			"stream": f"{base_url}api/clips/stream/{clip.id}" if file_exists else None,
+			"download": f"{base_url}api/clips/download/{clip.id}" if file_exists else None,
+		}
 	}
