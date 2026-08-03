@@ -87,116 +87,66 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 @router.get("/pending")
 def get_pending_clips():
 	"""Get pending clips - dev mode allows unauthenticated access"""
-	db = SessionLocal()
 	try:
+		db = SessionLocal()
 		streamer_id = 1
-		try:
-			clips = db.query(Clip).filter(
-				Clip.streamer_id == streamer_id,
-				Clip.status == "pending"
-			).order_by(Clip.created_at.desc()).all()
-		except Exception as query_error:
-			logger.error(f"Failed to query clips: {query_error}")
-			return {
-				"clips": [],
-				"error": f"Database query failed: {str(query_error)}"
-			}
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer_id,
+			Clip.status == "pending"
+		).order_by(Clip.created_at.desc()).all()
+		db.close()
 
-		result = {
-			"clips": [],
+		return {
+			"clips": [
+				{
+					"id": c.id,
+					"title": c.title,
+					"description": c.description,
+					"file_path": c.file_path,
+					"requested_by_type": c.requested_by_type,
+					"requested_by_name": c.requested_by_name,
+					"created_at": c.created_at.isoformat(),
+					"duration_seconds": c.duration_seconds,
+					"quality_score": c.quality_score,
+					"notes": c.notes
+				}
+				for c in clips
+			],
 			"count": len(clips)
 		}
-
-		for clip in clips:
-			try:
-				result["clips"].append({
-					"id": clip.id,
-					"title": clip.title or "Untitled",
-					"description": clip.description or "",
-					"file_path": clip.file_path or "",
-					"requested_by_type": clip.requested_by_type or "unknown",
-					"requested_by_name": clip.requested_by_name or "Unknown",
-					"created_at": clip.created_at.isoformat() if clip.created_at else None,
-					"duration_seconds": clip.duration_seconds,
-					"quality_score": clip.quality_score,
-					"sentiment_score": getattr(clip, 'sentiment_score', None),
-					"export_status": getattr(clip, 'export_status', None),
-					"export_preset": getattr(clip, 'export_preset', None),
-					"export_path": getattr(clip, 'export_path', None),
-					"export_updated_at": clip.export_updated_at.isoformat() if getattr(clip, 'export_updated_at', None) else None,
-					"notes": getattr(clip, 'notes', None)
-				})
-			except Exception as clip_error:
-				logger.error(f"Error serializing clip {clip.id}: {clip_error}")
-				continue
-
-		return result
 	except Exception as e:
-		logger.error(f"Unexpected error in get_pending_clips: {e}")
-		return {
-			"clips": [],
-			"error": str(e)
-		}
-	finally:
-		db.close()
+		logger.error(f"Error in get_pending_clips: {e}", exc_info=True)
+		return {"clips": [], "count": 0, "error": str(e)}
 
 
 @router.get("/recent")
 def get_recent_clips(request: Request, limit: int = 10, db: Session = Depends(get_db)):
 	"""Get recent approved clips - dev mode allows unauthenticated access"""
 	try:
-		# For dev/testing, use default streamer ID 1
-		# In production, would authenticate user and filter by their streamer ID
 		streamer_id = 1
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer_id,
+			Clip.status == "approved"
+		).order_by(Clip.created_at.desc()).limit(limit).all()
 
-		try:
-			# Only show clips for this streamer
-			clips = db.query(Clip).filter(
-				Clip.streamer_id == streamer_id,
-				Clip.status == "approved"
-			).order_by(Clip.created_at.desc()).limit(limit).all()
-		except Exception as query_error:
-			logger.error(f"Failed to query recent clips: {query_error}")
-			return {
-				"clips": [],
-				"error": f"Database query failed: {str(query_error)}"
-			}
-
-		result = {
-			"clips": [],
+		return {
+			"clips": [
+				{
+					"id": c.id,
+					"title": c.title,
+					"description": c.description,
+					"file_path": c.file_path,
+					"requested_by_name": c.requested_by_name,
+					"created_at": c.created_at.isoformat(),
+					"quality_score": c.quality_score
+				}
+				for c in clips
+			],
 			"count": len(clips)
 		}
-
-		for clip in clips:
-			try:
-				result["clips"].append({
-					"id": clip.id,
-					"title": clip.title or "Untitled",
-					"description": clip.description or "",
-					"file_path": clip.file_path or "",
-					"thumbnail_path": getattr(clip, 'thumbnail_path', None),
-					"requested_by_name": clip.requested_by_name or "Unknown",
-					"created_at": clip.created_at.isoformat() if clip.created_at else None,
-					"approved_at": clip.approved_at.isoformat() if getattr(clip, 'approved_at', None) else None,
-					"quality_score": clip.quality_score,
-					"tags": getattr(clip, 'tags', None),
-					"export_status": getattr(clip, 'export_status', None),
-					"export_preset": getattr(clip, 'export_preset', None),
-					"export_path": getattr(clip, 'export_path', None),
-					"export_updated_at": clip.export_updated_at.isoformat() if getattr(clip, 'export_updated_at', None) else None,
-					"notes": getattr(clip, 'notes', None)
-				})
-			except Exception as clip_error:
-				logger.error(f"Error serializing recent clip {clip.id}: {clip_error}")
-				continue
-
-		return result
 	except Exception as e:
-		logger.error(f"Unexpected error in get_recent_clips: {e}")
-		return {
-			"clips": [],
-			"error": str(e)
-		}
+		logger.error(f"Error in get_recent_clips: {e}", exc_info=True)
+		return {"clips": [], "count": 0, "error": str(e)}
 
 
 @router.post("/save-now")
