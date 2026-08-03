@@ -290,8 +290,8 @@ class MomentDetector:
     def set_sensitivity(self, sensitivity: float):
         """Update detection sensitivity (0.0-1.0)"""
         self.sensitivity = max(0.0, min(1.0, float(sensitivity)))
-        # Adjust threshold based on sensitivity
-        self.hype_threshold = 0.50 + (1.0 - sensitivity) * 0.20  # Range: 0.50-0.70
+        # Adjust threshold based on sensitivity - now 0.40-0.55 range for better detection
+        self.hype_threshold = 0.40 + (1.0 - sensitivity) * 0.15
         logger.info(f"Detector sensitivity updated to {self.sensitivity:.2f}, threshold={self.hype_threshold:.2f}")
 
     def get_status(self) -> dict:
