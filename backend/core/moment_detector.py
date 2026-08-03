@@ -60,12 +60,12 @@ class MomentDetector:
         self._callbacks: List[Callable[[DetectedMoment], None]] = []
 
         # Hype score weights (sum to 1.0)
-        self.weight_chat_zscore = 0.35
-        self.weight_audio_zscore = 0.25
+        self.weight_chat_zscore = 0.30
+        self.weight_audio_zscore = 0.20
         self.weight_acceleration = 0.20
-        self.weight_emote_density = 0.20
-        self.hype_threshold = 0.60  # 0-1 scale
-        self.chat_zscore_floor = 0.5  # soft floor, require some chat engagement
+        self.weight_emote_density = 0.30  # Increase weight on cheap signals (they're most reliable)
+        self.hype_threshold = 0.50  # 0-1 scale (reasonable for production)
+        self.chat_zscore_floor = 0.3  # soft floor, allow moments even with modest chat
 
     def on_moment_detected(self, callback: Callable[[DetectedMoment], None]):
         """Register callback for when a moment is detected"""
