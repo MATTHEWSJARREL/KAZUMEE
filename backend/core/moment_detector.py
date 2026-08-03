@@ -33,7 +33,7 @@ class MomentDetector:
         # EWMA state for chat (exponentially-weighted moving average)
         self.chat_ewma_mean = 0.5  # baseline messages/sec
         self.chat_ewma_var = 0.1   # baseline variance
-        self.chat_ewma_alpha = 0.3  # decay factor (0.3 = weight last update 30%)
+        self.chat_ewma_alpha = 0.15  # decay factor (0.15 = weight last update 15%, slow adaptation)
         self.chat_prev_velocity = 0.0
         self.chat_message_count = 0
         self.chat_last_bucket_time = time.time()
@@ -41,7 +41,7 @@ class MomentDetector:
         # EWMA state for audio
         self.audio_ewma_mean = 0.1  # baseline peak
         self.audio_ewma_var = 0.02  # baseline variance
-        self.audio_ewma_alpha = 0.3
+        self.audio_ewma_alpha = 0.15  # slower adaptation prevents baseline creep
         self.audio_prev_peak = 0.0
 
         # Message history for cheap signal extraction (last 50 messages)
