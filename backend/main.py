@@ -329,9 +329,21 @@ async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     print("Kazumi is waking up...")
 
-    # Initialize database tables
+    # Initialize database tables (import all models first so they register with Base)
     try:
         from backend.database.session import engine, Base
+        # Import all models so they register with Base.metadata
+        from backend.database.models.clip import Clip
+        from backend.database.models.streamer import Streamer
+        from backend.database.models.viewer import Viewer
+        from backend.database.models.community import Community
+        from backend.database.models.stream_session import StreamSession
+        from backend.database.models.command import Command
+        from backend.database.models.command_result import CommandResult
+        from backend.database.models.user import User
+        from backend.database.models.user_session import UserSession
+        from backend.database.models.stream_event import StreamEvent
+
         Base.metadata.create_all(bind=engine)
         print("[OK] Database tables initialized")
     except Exception as e:
