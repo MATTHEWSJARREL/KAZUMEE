@@ -86,38 +86,84 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 
 @router.get("/pending")
 def get_pending_clips():
-	"""Get pending clips for default streamer (dev mode)"""
-	return {"status": "ok", "message": "endpoint is working", "clips": []}
+	"""Get pending clips - dev mode allows unauthenticated access"""
+	db = SessionLocal()
+	try:
+		streamer_id = 1
+		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+		if not streamer:
+			raise HTTPException(status_code=404, detail="No streamer found")
+
+		clips = db.query(Clip).filter(
+			Clip.streamer_id == streamer.id,
+			Clip.status == "pending"
+		).order_by(Clip.created_at.desc()).all()
+
+		return {
+			"clips": [
+				{
+					"id": clip.id,
+					"title": clip.title,
+					"description": clip.description,
+					"file_path": clip.file_path,
+					"requested_by_type": clip.requested_by_type,
+					"requested_by_name": clip.requested_by_name,
+					"created_at": clip.created_at.isoformat(),
+					"duration_seconds": clip.duration_seconds,
+					"quality_score": clip.quality_score,
+					"sentiment_score": clip.sentiment_score,
+					"export_status": clip.export_status,
+					"export_preset": clip.export_preset,
+					"export_path": clip.export_path,
+					"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+					"notes": clip.notes
+				}
+				for clip in clips
+			]
+		}
+	finally:
+		db.close()
 
 
 @router.get("/recent")
 def get_recent_clips(request: Request, limit: int = 10, db: Session = Depends(get_db)):
 	"""Get recent approved clips - dev mode allows unauthenticated access"""
-	try:
-		streamer_id = 1
-		clips = db.query(Clip).filter(
-			Clip.streamer_id == streamer_id,
-			Clip.status == "approved"
-		).order_by(Clip.created_at.desc()).limit(limit).all()
+	# For dev/testing, use default streamer ID 1
+	# In production, would authenticate user and filter by their streamer ID
+	streamer_id = 1
 
-		return {
-			"clips": [
-				{
-					"id": c.id,
-					"title": c.title,
-					"description": c.description,
-					"file_path": c.file_path,
-					"requested_by_name": c.requested_by_name,
-					"created_at": c.created_at.isoformat(),
-					"quality_score": c.quality_score
-				}
-				for c in clips
-			],
-			"count": len(clips)
-		}
-	except Exception as e:
-		logger.error(f"Error in get_recent_clips: {e}", exc_info=True)
-		return {"clips": [], "count": 0, "error": str(e)}
+	streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+	if not streamer:
+		raise HTTPException(status_code=404, detail="No streamer found")
+
+	# Only show clips for this streamer
+	clips = db.query(Clip).filter(
+		Clip.streamer_id == streamer.id,
+		Clip.status == "approved"
+	).order_by(Clip.created_at.desc()).limit(limit).all()
+
+	return {
+		"clips": [
+			{
+				"id": clip.id,
+				"title": clip.title,
+				"description": clip.description,
+				"file_path": clip.file_path,
+				"thumbnail_path": clip.thumbnail_path,
+				"requested_by_name": clip.requested_by_name,
+				"created_at": clip.created_at.isoformat(),
+				"approved_at": clip.approved_at.isoformat() if clip.approved_at else None,
+				"quality_score": clip.quality_score,
+				"tags": clip.tags,
+				"export_status": clip.export_status,
+				"export_preset": clip.export_preset,
+				"export_path": clip.export_path,
+				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
+				"notes": clip.notes
+			}
+			for clip in clips
+		]
+	}
 
 
 @router.post("/save-now")
