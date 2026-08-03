@@ -95,12 +95,12 @@ def get_clips(limit: int = 50, request: Request = None, db: Session = Depends(ge
 @router.get("/check-generated")
 def check_clips_generated(request: Request):
 	"""Check clips for current user's streamer (dev test endpoint)"""
-	try:
-		user = get_current_user(request, required=True)
-		streamer_id = get_streamer_id_for_user(user)
-		if not streamer_id:
-			raise HTTPException(status_code=403, detail="Not a streamer")
+	user = get_current_user(request, required=True)
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
 
+	try:
 		db = SessionLocal()
 		clip_count = db.query(Clip).filter(Clip.streamer_id == streamer_id).count()
 		latest_clips = db.query(Clip).filter(Clip.streamer_id == streamer_id).order_by(Clip.created_at.desc()).limit(3).all()
@@ -120,18 +120,19 @@ def check_clips_generated(request: Request):
 			]
 		}
 	except Exception as e:
-		return {"status": "error", "error": str(e)}
+		logger.error(f"Error in check_clips_generated: {e}", exc_info=True)
+		raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/test-create")
 def test_create_clip(request: Request):
 	"""Simple test endpoint to create a clip directly (dev only)"""
-	try:
-		user = get_current_user(request, required=True)
-		streamer_id = get_streamer_id_for_user(user)
-		if not streamer_id:
-			raise HTTPException(status_code=403, detail="Not a streamer")
+	user = get_current_user(request, required=True)
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
 
+	try:
 		db = SessionLocal()
 		clip = Clip(
 			file_path="backend/data/test_videos/test_stream.mp4",
@@ -156,7 +157,8 @@ def test_create_clip(request: Request):
 			"message": f"Test clip created with ID {clip.id}"
 		}
 	except Exception as e:
-		return {"status": "error", "error": str(e)}
+		logger.error(f"Error creating test clip: {e}", exc_info=True)
+		raise HTTPException(status_code=500, detail="Failed to create test clip")
 
 
 @router.get("/pending")
