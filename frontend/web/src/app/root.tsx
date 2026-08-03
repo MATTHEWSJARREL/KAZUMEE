@@ -35,6 +35,7 @@ import { KazumiResponseProvider } from '@/lib/KazumiResponseContext';
 // @ts-ignore
 
 import { useObsTruth } from '@/hooks/useObsTruth';
+import { useApiErrorHandler } from '@/hooks/useApiError';
 import { apiFetch, isAuthBypassEnabled, getAuthToken, clearAuthToken, clearActiveStreamerId, clearAuthBypass } from '@/lib/apiClient';
 
 import type { Route } from './+types/root';
@@ -424,6 +425,9 @@ export default function App() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const showObs = !isAuthRoute && (isAuthBypassEnabled() || authUser?.role === "streamer");
   const { state } = useObsTruth(showObs);
+
+  // Set up global API error handler for 403 viewer errors
+  useApiErrorHandler();
 
   useEffect(() => {
     if (isAuthRoute) {

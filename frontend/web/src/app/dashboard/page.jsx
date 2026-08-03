@@ -89,9 +89,21 @@ export default function Dashboard() {
 
       const clipsToShow = [];
 
-      // Fetch all clips from /api/clips/ endpoint
+      // Fetch all clips from /api/clips/ endpoint with error handling
       try {
         const allClipsRes = await fetch(`${getApiUrl()}/api/clips/?limit=50`);
+
+        // Handle 403 Forbidden - viewer trying to access streamer features
+        if (allClipsRes.status === 403) {
+          const errorData = await allClipsRes.json();
+          if (errorData.detail?.includes('streamer')) {
+            // This is expected - show friendly message to viewers
+            setClips([]);
+            setLoading(false);
+            return;
+          }
+        }
+
         if (allClipsRes.ok) {
           const allClipsData = await allClipsRes.json();
           console.log('✅ All clips fetched:', allClipsData.clips?.length || 0);
