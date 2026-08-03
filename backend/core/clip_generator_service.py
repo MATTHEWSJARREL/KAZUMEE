@@ -141,6 +141,27 @@ class ClipGeneratorService:
                 content_analysis_json = json.dumps(content_analysis)
                 print(f"[DEBUG] content_analysis JSON: {content_analysis_json[:100]}")
 
+                # Ensure streamer_id=1 exists (for dev/testing)
+                streamer_id = 1
+                streamer = db.query(text("SELECT 1 FROM streamers WHERE id = :id")).params(id=streamer_id).first()
+                if not streamer:
+                    # Create default streamer if it doesn't exist
+                    from backend.database.models.streamer import Streamer
+                    default_streamer = Streamer(id=streamer_id, username="default", display_name="Default Streamer", platform="kazumi")
+                    db.add(default_streamer)
+                    db.flush()
+                    logger.info("Created default streamer for clip storage")
+
+                # Ensure stream_session_id=1 exists (for dev/testing)
+                session = db.query(text("SELECT 1 FROM stream_sessions WHERE id = 1")).first()
+                if not session:
+                    # Create default stream session if it doesn't exist
+                    from backend.database.models.stream_session import StreamSession
+                    default_session = StreamSession(id=1, streamer_id=streamer_id, status="active")
+                    db.add(default_session)
+                    db.flush()
+                    logger.info("Created default stream session for clip storage")
+
                 print(f"[DEBUG] Inserting clip into database...")
                 db.execute(text("""
                     INSERT INTO clips (
