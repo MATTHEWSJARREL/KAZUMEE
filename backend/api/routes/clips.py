@@ -84,6 +84,32 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 	}
 
 
+@router.get("/check-generated")
+def check_clips_generated():
+	"""Check if ANY clips have been generated (dev test endpoint)"""
+	try:
+		db = SessionLocal()
+		clip_count = db.query(Clip).count()
+		latest_clips = db.query(Clip).order_by(Clip.created_at.desc()).limit(3).all()
+		db.close()
+
+		return {
+			"status": "ok",
+			"total_clips_in_db": clip_count,
+			"latest_clips": [
+				{
+					"id": c.id,
+					"title": c.title,
+					"created_at": c.created_at.isoformat() if c.created_at else None,
+					"file_path": c.file_path
+				}
+				for c in latest_clips
+			]
+		}
+	except Exception as e:
+		return {"status": "error", "error": str(e)}
+
+
 @router.get("/pending")
 def get_pending_clips():
 	"""Get pending clips - dev mode, returns all pending clips"""
