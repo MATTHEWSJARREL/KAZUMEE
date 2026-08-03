@@ -38,7 +38,7 @@ async def on_chat_event(request: Request, payload: ChatEventRequest):
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
-        detector.add_chat_message(source=payload.source)
+        detector.add_chat_message(source=payload.source, message=payload.message)
 
         return {
             "status": "ok",
@@ -88,16 +88,18 @@ async def test_moment_detection(background_tasks: BackgroundTasks):
         from backend.core.moment_detector import get_detector
         detector = get_detector()
 
-        # Simulate chat spike
-        for i in range(10):
-            detector.add_chat_message("test")
+        # Simulate realistic chat spike with hype indicators
+        hype_messages = ["PogChamp", "OMEGALUL", "clip it", "insane", "no way", "WHAT", "W W W", "hype hype", "!!!"]
+        for i in range(15):
+            msg = hype_messages[i % len(hype_messages)]
+            detector.add_chat_message("test", message=msg)
 
         # Simulate audio spike
-        detector.add_audio_peak(0.9, "test")
+        detector.add_audio_peak(0.75, "test")
 
         return {
             "status": "test_moment_sent",
-            "message": "Simulated chat spike + audio peak",
+            "message": "Simulated realistic hype moment (15 messages + audio)",
         }
 
     except Exception as e:
