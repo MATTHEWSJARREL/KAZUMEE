@@ -329,6 +329,14 @@ async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     print("Kazumi is waking up...")
 
+    # Initialize database tables
+    try:
+        from backend.database.session import engine, Base
+        Base.metadata.create_all(bind=engine)
+        print("[OK] Database tables initialized")
+    except Exception as e:
+        print(f"[WARN] Database table initialization failed: {e}")
+
     # Initialize Event Bus (Redis Streams + PostgreSQL)
     try:
         event_bus = await init_event_bus()
