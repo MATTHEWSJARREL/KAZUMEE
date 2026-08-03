@@ -3,7 +3,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Only load .env if DATABASE_URL is not already set (Railway sets it as env var)
+if not os.getenv("DATABASE_URL"):
+    load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
