@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from backend.core.auth import get_current_user
+from backend.core.auth import get_current_user, get_streamer_id_for_user
 from backend.core.clip_pipeline import ClipPipeline, ClipPipelineError
 from backend.database.session import get_db
 from backend.database.models.clip import Clip as ClipModel
@@ -55,6 +55,7 @@ def get_pipeline() -> ClipPipeline:
 @router.post("/generate", response_model=ClipGenerationResponse)
 async def generate_clip_manual(
     payload: ManualClipRequest,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> ClipGenerationResponse:
@@ -69,8 +70,11 @@ async def generate_clip_manual(
     The clip generation runs in the background and returns immediately.
     """
     try:
-        # For v1 testing: use hardcoded streamer_id, skip auth
-        streamer_id = 1
+        user = get_current_user(request, required=True)
+        streamer_id = get_streamer_id_for_user(user)
+        if not streamer_id:
+            raise HTTPException(status_code=403, detail="Not a streamer")
+
         logger.info(f"Clip generation triggered for streamer {streamer_id}")
 
         # Queue clip generation to run in background
@@ -163,12 +167,18 @@ async def _process_clip_generation(
 @router.get("/recent")
 async def get_recent_clips(
     limit: int = 10,
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """Get recently generated clips for this streamer"""
     try:
-        # For v1 testing: use hardcoded streamer_id
-        streamer_id = 1
+        if not request:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        user = get_current_user(request, required=True)
+        streamer_id = get_streamer_id_for_user(user)
+        if not streamer_id:
+            raise HTTPException(status_code=403, detail="Not a streamer")
 
         clips = (
             db.query(ClipModel)

@@ -936,11 +936,17 @@ from backend.database.models.clip import Clip
 from backend.database.models.streamer import Streamer
 
 @app.get("/api/clips/pending")
-def get_pending_clips_workaround():
+def get_pending_clips_workaround(request: Request):
 	"""Get pending clips - workaround route in main.py"""
+	from backend.core.auth import get_current_user, get_streamer_id_for_user
+
+	user = get_current_user(request, required=True)
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
+
 	db = SessionLocal()
 	try:
-		streamer_id = 1
 		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
 		if not streamer:
 			raise HTTPException(status_code=404, detail="No streamer found")
@@ -977,11 +983,17 @@ def get_pending_clips_workaround():
 
 
 @app.get("/api/clips/recent")
-def get_recent_clips_workaround(limit: int = 10):
+def get_recent_clips_workaround(request: Request, limit: int = 10):
 	"""Get recent approved clips - workaround route in main.py"""
+	from backend.core.auth import get_current_user, get_streamer_id_for_user
+
+	user = get_current_user(request, required=True)
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
+
 	db = SessionLocal()
 	try:
-		streamer_id = 1
 		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
 		if not streamer:
 			raise HTTPException(status_code=404, detail="No streamer found")
