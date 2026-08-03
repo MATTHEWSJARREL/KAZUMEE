@@ -250,8 +250,8 @@ class MomentDetector:
             self.weight_emote_density * emote_score
         )
 
-        # Cold-start uses higher threshold
-        threshold = self.hype_threshold * 1.3 if in_cold_start else self.hype_threshold
+        # Cold-start uses slightly higher threshold (1.15x) to avoid false positives during setup
+        threshold = self.hype_threshold * 1.15 if in_cold_start else self.hype_threshold
 
         if hype_score > threshold:
             self.last_moment_time = current_time
