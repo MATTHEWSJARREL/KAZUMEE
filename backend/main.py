@@ -346,6 +346,31 @@ async def lifespan(app: FastAPI):
 
         Base.metadata.create_all(bind=engine)
         print("[OK] Database tables initialized")
+
+        # Create default streamer and session if they don't exist
+        db = SessionLocal()
+        try:
+            existing_streamer = db.query(Streamer).filter(Streamer.id == 1).first()
+            if not existing_streamer:
+                default_streamer = Streamer(id=1, username="default", display_name="Default Streamer", platform="kazumi")
+                db.add(default_streamer)
+                db.flush()
+                print("[OK] Created default streamer")
+
+            existing_session = db.query(StreamSession).filter(StreamSession.id == 1).first()
+            if not existing_session:
+                default_session = StreamSession(id=1, streamer_id=1, status="active")
+                db.add(default_session)
+                db.flush()
+                print("[OK] Created default stream session")
+
+            db.commit()
+        except Exception as e:
+            print(f"[WARN] Failed to create default records: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
     except Exception as e:
         print(f"[WARN] Database table initialization failed: {e}")
 
