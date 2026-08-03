@@ -58,19 +58,58 @@ class ClipGeneratorService:
             self.is_processing = False
 
     def _create_clip_record(self, moment: DetectedMoment):
-        """Create a clip record in the database from a detected moment - MINIMAL version"""
+        """Create a clip record in the database from a detected moment with video extraction"""
         db = None
         try:
-            from backend.database.session import SessionLocal, engine
-            from sqlalchemy import text, insert
+            from backend.database.session import SessionLocal
+            from sqlalchemy import text
+            from backend.core.video_extractor import get_extractor
 
             db = SessionLocal()
 
-            # Ultra-simple: just one raw SQL insert
+            # Step 1: Extract video from OBS replay buffer or fallback source
+            logger.info(f"Extracting video for moment {moment.moment_id}...")
+            extractor = get_extractor()
+
+            video_source = None
+
+            # Try OBS replay buffer first
+            if self.obs_adapter:
+                try:
+                    replay_path = self.obs_adapter.get_replay_buffer_status()
+                    if replay_path and os.path.exists(replay_path):
+                        video_source = replay_path
+                        logger.info(f"Using OBS replay buffer: {video_source}")
+                except Exception as e:
+                    logger.warning(f"Could not access OBS replay buffer: {e}")
+
+            # Fall back to test video if OBS not available
+            if not video_source:
+                fallback_video = "backend/data/test_videos/test_stream.mp4"
+                if os.path.exists(fallback_video):
+                    video_source = fallback_video
+                    logger.info(f"Using fallback video: {video_source}")
+                else:
+                    logger.error("No video source available (OBS not connected and no fallback video)")
+                    return
+
+            # Step 2: Extract the video segment (45 seconds)
+            file_path = extractor.extract_segment(
+                input_video=video_source,
+                start_seconds=0,
+                duration_seconds=45
+            )
+
+            if not file_path:
+                logger.error(f"Failed to extract video segment for moment {moment.moment_id}")
+                return
+
+            logger.info(f"✅ Video extracted: {file_path}")
+
+            # Step 3: Create clip record with actual file path
             title = "AUTO CLIP"
             score = min(moment.combined_score / 100, 1.0)
 
-            # Direct SQL insert - no ORM, no fancy logic
             query = text("""
                 INSERT INTO clips (title, description, file_path, status,
                                   requested_by_type, requested_by_name,
@@ -83,7 +122,7 @@ class ClipGeneratorService:
             db.execute(query, {
                 "title": title,
                 "desc": moment.context[:100] if moment.context else "Auto moment",
-                "file_path": f"auto_{moment.moment_id}.mp4",
+                "file_path": file_path,
                 "status": "pending",
                 "req_type": "auto_detection",
                 "req_name": "AI",
@@ -93,12 +132,12 @@ class ClipGeneratorService:
                 "streamer_id": 1
             })
             db.commit()
-            logger.warning(f"✅ CLIP CREATED in DB (score={score:.2f})")
+            logger.warning(f"✅ CLIP CREATED in DB (score={score:.2f}) → {file_path}")
 
         except Exception as e:
             if db:
                 db.rollback()
-            logger.error(f"❌ Insert failed: {type(e).__name__}: {e}")
+            logger.error(f"❌ Clip creation failed: {type(e).__name__}: {e}", exc_info=True)
             raise
         finally:
             if db:
