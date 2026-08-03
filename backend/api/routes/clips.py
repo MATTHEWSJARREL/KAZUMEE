@@ -86,18 +86,11 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 
 @router.get("/pending")
 def get_pending_clips():
-	"""Get pending clips - dev mode allows unauthenticated access"""
+	"""Get pending clips - dev mode, returns all pending clips"""
 	db = SessionLocal()
 	try:
-		streamer_id = 1
-		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
-		if not streamer:
-			raise HTTPException(status_code=404, detail="No streamer found")
-
-		clips = db.query(Clip).filter(
-			Clip.streamer_id == streamer.id,
-			Clip.status == "pending"
-		).order_by(Clip.created_at.desc()).all()
+		# For dev mode: return all pending clips, no streamer filtering
+		clips = db.query(Clip).filter(Clip.status == "pending").order_by(Clip.created_at.desc()).limit(100).all()
 
 		return {
 			"clips": [
@@ -119,8 +112,12 @@ def get_pending_clips():
 					"notes": clip.notes
 				}
 				for clip in clips
-			]
+			],
+			"count": len(clips)
 		}
+	except Exception as e:
+		logger.error(f"Error in get_pending_clips: {e}", exc_info=True)
+		return {"clips": [], "error": str(e)}
 	finally:
 		db.close()
 
