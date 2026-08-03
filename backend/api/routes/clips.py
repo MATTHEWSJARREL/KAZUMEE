@@ -90,12 +90,8 @@ def get_pending_clips():
 	db = SessionLocal()
 	try:
 		streamer_id = 1
-		streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
-		if not streamer:
-			raise HTTPException(status_code=404, detail="No streamer found")
-
 		clips = db.query(Clip).filter(
-			Clip.streamer_id == streamer.id,
+			Clip.streamer_id == streamer_id,
 			Clip.status == "pending"
 		).order_by(Clip.created_at.desc()).all()
 
@@ -132,13 +128,9 @@ def get_recent_clips(request: Request, limit: int = 10, db: Session = Depends(ge
 	# In production, would authenticate user and filter by their streamer ID
 	streamer_id = 1
 
-	streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
-	if not streamer:
-		raise HTTPException(status_code=404, detail="No streamer found")
-
 	# Only show clips for this streamer
 	clips = db.query(Clip).filter(
-		Clip.streamer_id == streamer.id,
+		Clip.streamer_id == streamer_id,
 		Clip.status == "approved"
 	).order_by(Clip.created_at.desc()).limit(limit).all()
 
