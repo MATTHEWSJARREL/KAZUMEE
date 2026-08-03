@@ -10,6 +10,7 @@ import logging
 import time
 import os
 import json
+import traceback
 from datetime import datetime
 from typing import Optional
 
@@ -38,27 +39,27 @@ class ClipGeneratorService:
         self.is_processing = False
         logger.info("Clip Generator Service initialized")
 
-    async def on_moment_detected(self, moment: DetectedMoment):
-        """Callback when moment is detected - generates actual clip"""
-        try:
-            print(f"[CLIP_GEN] Callback invoked for moment {moment.moment_id}")
-        except:
-            pass
-        logger.info(f"[CLIP] Generating clip for moment: {moment.moment_id}")
+    def on_moment_detected(self, moment: DetectedMoment):
+        """Callback when moment is detected - with aggressive logging to catch silent failures"""
+        # LOG BEFORE EVERYTHING - this proves callback was reached
+        logger.warning(f"🎬 TRIGGER FIRED: moment_id={moment.moment_id} score={moment.combined_score:.2f}")
+        logger.warning(f"   context={moment.context[:50]}")
 
         if self.is_processing:
-            logger.info(f"Skipping moment (processing already in progress)")
+            logger.warning(f"⏭️  Skipping (already processing)")
             return
 
         self.is_processing = True
         try:
-            # Quick path: Create clip record immediately, then do async processing
+            logger.warning(f"📝 Creating clip record...")
+            # Call the exact same method the test endpoint uses
             self._create_clip_record(moment)
-            logger.info(f"[OK] Clip record created for moment {moment.moment_id}")
-            return
+            logger.warning(f"✅ CLIP CREATED: {moment.moment_id}")
         except Exception as e:
-            logger.error(f"[ERROR] Failed to create clip record: {e}", exc_info=True)
-            return
+            # FULL TRACEBACK - this is what was missing
+            logger.error(f"❌ AUTO-CLIP FAILED:\n{traceback.format_exc()}")
+            print(f"[ERROR] Clip creation failed: {e}")
+            print(traceback.format_exc())
         finally:
             self.is_processing = False
 
