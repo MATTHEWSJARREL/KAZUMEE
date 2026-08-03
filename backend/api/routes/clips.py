@@ -86,37 +86,16 @@ def get_clips(limit: int = 50, db: Session = Depends(get_db)):
 
 @router.get("/pending")
 def get_pending_clips():
-	"""Get pending clips - dev mode allows unauthenticated access"""
+	"""Get pending clips for default streamer (dev mode)"""
+	db = SessionLocal()
 	try:
-		db = SessionLocal()
-		streamer_id = 1
-		clips = db.query(Clip).filter(
-			Clip.streamer_id == streamer_id,
-			Clip.status == "pending"
-		).order_by(Clip.created_at.desc()).all()
-		db.close()
-
-		return {
-			"clips": [
-				{
-					"id": c.id,
-					"title": c.title,
-					"description": c.description,
-					"file_path": c.file_path,
-					"requested_by_type": c.requested_by_type,
-					"requested_by_name": c.requested_by_name,
-					"created_at": c.created_at.isoformat(),
-					"duration_seconds": c.duration_seconds,
-					"quality_score": c.quality_score,
-					"notes": c.notes
-				}
-				for c in clips
-			],
-			"count": len(clips)
-		}
+		clips = db.query(Clip).filter(Clip.status == "pending").order_by(Clip.created_at.desc()).all()
+		return {"clips": [{"id": c.id, "title": c.title, "created_at": c.created_at.isoformat()} for c in clips]}
 	except Exception as e:
-		logger.error(f"Error in get_pending_clips: {e}", exc_info=True)
-		return {"clips": [], "count": 0, "error": str(e)}
+		logger.error(f"get_pending_clips error: {e}", exc_info=True)
+		return {"clips": [], "error": str(e)}
+	finally:
+		db.close()
 
 
 @router.get("/recent")
