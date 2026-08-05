@@ -72,7 +72,7 @@ class MomentDetector:
         """Register callback for when a moment is detected"""
         self._callbacks.append(callback)
 
-    def add_chat_message(self, source: str = "twitch", message: str = "", streamer_id: int = 1):
+    def add_chat_message(self, source: str = "twitch", message: str = "", streamer_id: int):
         """Register a chat message (now extracts signals too)"""
         current_time = time.time()
 
@@ -100,7 +100,7 @@ class MomentDetector:
 
         self._check_moment_triggered(source, streamer_id)
 
-    def add_audio_peak(self, peak_value: float, source: str = "obs", streamer_id: int = 1):
+    def add_audio_peak(self, peak_value: float, source: str = "obs", streamer_id: int):
         """Register an audio peak (0.0-1.0)"""
         current_time = time.time()
 
@@ -199,7 +199,7 @@ class MomentDetector:
 
         return emote_density, keyword_count, duplicate_ratio
 
-    def _check_moment_triggered(self, source: str, streamer_id: int = 1):
+    def _check_moment_triggered(self, source: str, streamer_id: int):
         """Check if current signal combination triggers a moment (weighted z-score approach)"""
         current_time = time.time()
         if (current_time - self.last_moment_time) < self.debounce_interval:

@@ -71,7 +71,7 @@ class ClipGeneratorService:
             from backend.core.video_extractor import get_extractor
 
             db = SessionLocal()
-            streamer_id = 1  # Default streamer for v1
+            streamer_id = moment.streamer_id  # From detected moment (REQUIRED)
 
             # Log clip detection
             log_event(
@@ -311,19 +311,19 @@ class ClipGeneratorService:
                 content_analysis_json = json.dumps(content_analysis)
                 print(f"[DEBUG] content_analysis JSON: {content_analysis_json[:100]}")
 
-                # Ensure streamer_id=1 exists (for dev/testing)
-                streamer_id = 1
+                # Use streamer_id from the moment object (REQUIRED)
+                streamer_id = moment.streamer_id
                 streamer = db.query(text("SELECT 1 FROM streamers WHERE id = :id")).params(id=streamer_id).first()
                 if not streamer:
                     # Create default streamer if it doesn't exist
                     from backend.database.models.streamer import Streamer
-                    default_streamer = Streamer(id=streamer_id, username="default", display_name="Default Streamer", platform="kazumi")
+                    default_streamer = Streamer(id=streamer_id, username=f"streamer_{streamer_id}", display_name=f"Streamer {streamer_id}", platform="kazumi")
                     db.add(default_streamer)
                     db.flush()
-                    logger.info("Created default streamer for clip storage")
+                    logger.warning(f"Created default streamer record for streamer_id={streamer_id} (should have pre-existing record)")
 
-                # Ensure stream_session_id=1 exists (for dev/testing)
-                session = db.query(text("SELECT 1 FROM stream_sessions WHERE id = 1")).first()
+                # Ensure stream_session exists for this streamer (for dev/testing)
+                session = db.query(text("SELECT 1 FROM stream_sessions WHERE streamer_id = :streamer_id LIMIT 1")).params(streamer_id=streamer_id).first()
                 if not session:
                     # Create default stream session if it doesn't exist
                     from backend.database.models.stream_session import StreamSession

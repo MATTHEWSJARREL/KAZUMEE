@@ -96,11 +96,11 @@ async def on_chat_event(
     """Register a chat message for moment detection (scoped to authenticated streamer)."""
     ensure_agent_callback_registered()
 
-    # Get streamer_id from authenticated user
+    # Get streamer_id from authenticated user - REQUIRED
     streamer_id = get_streamer_id_for_user(current_user)
     if not streamer_id:
-        # Fallback to 1 for demo/single-streamer mode
-        streamer_id = 1
+        logger.warning(f"Chat event rejected: no streamer_id for user {current_user.id if current_user else 'anonymous'}")
+        raise HTTPException(status_code=400, detail="Chat event must be tied to a streamer")
 
     try:
         from backend.core.moment_detector import get_detector
@@ -130,11 +130,11 @@ async def on_audio_event(
     """Register an audio peak for moment detection (scoped to authenticated streamer)."""
     ensure_agent_callback_registered()
 
-    # Get streamer_id from authenticated user
+    # Get streamer_id from authenticated user - REQUIRED
     streamer_id = get_streamer_id_for_user(current_user)
     if not streamer_id:
-        # Fallback to 1 for demo/single-streamer mode
-        streamer_id = 1
+        logger.warning(f"Audio event rejected: no streamer_id for user {current_user.id if current_user else 'anonymous'}")
+        raise HTTPException(status_code=400, detail="Audio event must be tied to a streamer")
 
     try:
         from backend.core.moment_detector import get_detector
