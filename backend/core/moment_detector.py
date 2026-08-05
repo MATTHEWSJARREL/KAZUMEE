@@ -21,6 +21,7 @@ class DetectedMoment:
     audio_peak: float
     combined_score: float
     context: str
+    streamer_id: int  # CRITICAL: which streamer's stream detected this moment
 
 
 class MomentDetector:
@@ -71,7 +72,7 @@ class MomentDetector:
         """Register callback for when a moment is detected"""
         self._callbacks.append(callback)
 
-    def add_chat_message(self, source: str = "twitch", message: str = ""):
+    def add_chat_message(self, source: str = "twitch", message: str = "", streamer_id: int = 1):
         """Register a chat message (now extracts signals too)"""
         current_time = time.time()
 
@@ -97,16 +98,16 @@ class MomentDetector:
             "source": source
         })
 
-        self._check_moment_triggered(source)
+        self._check_moment_triggered(source, streamer_id)
 
-    def add_audio_peak(self, peak_value: float, source: str = "obs"):
+    def add_audio_peak(self, peak_value: float, source: str = "obs", streamer_id: int = 1):
         """Register an audio peak (0.0-1.0)"""
         current_time = time.time()
 
         # Update audio EWMA
         self._update_audio_ewma(peak_value)
 
-        self._check_moment_triggered(source)
+        self._check_moment_triggered(source, streamer_id)
 
     def _update_chat_ewma(self, current_velocity: float):
         """Update exponentially-weighted moving average for chat velocity"""
@@ -198,7 +199,7 @@ class MomentDetector:
 
         return emote_density, keyword_count, duplicate_ratio
 
-    def _check_moment_triggered(self, source: str):
+    def _check_moment_triggered(self, source: str, streamer_id: int = 1):
         """Check if current signal combination triggers a moment (weighted z-score approach)"""
         current_time = time.time()
         if (current_time - self.last_moment_time) < self.debounce_interval:
@@ -267,6 +268,7 @@ class MomentDetector:
                 audio_peak=audio_peak,
                 combined_score=combined_score,
                 context=context,
+                streamer_id=streamer_id,
             )
 
             logger.info(f"[MOMENT] DETECTED: score={combined_score}/100 | {context}")

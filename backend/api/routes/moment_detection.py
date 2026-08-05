@@ -5,13 +5,14 @@ Receives real-time chat and audio events, feeds them to the detector,
 and auto-triggers clip generation when moments are detected.
 """
 
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, WebSocket
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, WebSocket, Depends
 from pydantic import BaseModel
 import logging
 from typing import Optional
 import json
 import asyncio
 from backend.core.moment_detector import DetectedMoment
+from backend.core.auth import get_current_user, get_streamer_id_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -24,30 +25,21 @@ router = APIRouter(prefix="/api/moments", tags=["MomentDetection"])
 
 async def on_moment_detected_send_clip_command(moment: DetectedMoment):
     """
-    Callback: When moment is detected, send clip command to agent.
-    This bridges the cloud detector to the local agent on the streamer's PC.
+    Callback: When moment is detected, send clip command to ONLY that streamer's agent.
+    CRITICAL: targeted send, not broadcast — prevents cross-account clip commands.
     """
     try:
         from backend.api.routes.agent import send_clip_command_to_agent
-        from backend.database.session import SessionLocal
-        from sqlalchemy import func
-        from backend.database.models.clip import Clip
 
-        # Get all connected agents' streamer IDs
-        # (We'll try to send to whoever has an active stream)
-        db = SessionLocal()
-        try:
-            # For now, send to all connected agents
-            # In production, you'd track which streamer is currently streaming
-            from backend.api.routes.agent import connected_agents
+        streamer_id = moment.streamer_id
+        success = await send_clip_command_to_agent(streamer_id)
 
-            for streamer_id in list(connected_agents.keys()):
-                success = await send_clip_command_to_agent(streamer_id)
-                if success:
-                    logger.info(f"[CLIP COMMAND] Sent to streamer {streamer_id} | "
-                               f"Score: {moment.combined_score}/100 | Context: {moment.context}")
-        finally:
-            db.close()
+        if success:
+            logger.info(f"[CLIP COMMAND] Sent to streamer {streamer_id} | "
+                       f"Score: {moment.combined_score}/100 | Context: {moment.context}")
+        else:
+            logger.warning(f"[CLIP COMMAND] Agent offline for streamer {streamer_id} | "
+                          f"Score: {moment.combined_score}/100 (clip not captured)")
 
     except Exception as e:
         logger.error(f"Failed to send clip command to agent: {e}")
@@ -96,17 +88,32 @@ class AudioEventRequest(BaseModel):
 
 
 @router.post("/chat-event")
-async def on_chat_event(request: Request, payload: ChatEventRequest):
-    """Register a chat message for moment detection."""
+async def on_chat_event(
+    request: Request,
+    payload: ChatEventRequest,
+    current_user = Depends(get_current_user)
+):
+    """Register a chat message for moment detection (scoped to authenticated streamer)."""
     ensure_agent_callback_registered()
+
+    # Get streamer_id from authenticated user
+    streamer_id = get_streamer_id_for_user(current_user)
+    if not streamer_id:
+        # Fallback to 1 for demo/single-streamer mode
+        streamer_id = 1
+
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
-        detector.add_chat_message(source=payload.source, message=payload.message)
+        detector.add_chat_message(
+            source=payload.source,
+            message=payload.message,
+            streamer_id=streamer_id
+        )
 
         return {
             "status": "ok",
-            "message": f"Chat from {payload.source} recorded",
+            "message": f"Chat from {payload.source} recorded for streamer {streamer_id}",
         }
 
     except Exception as e:
@@ -115,17 +122,33 @@ async def on_chat_event(request: Request, payload: ChatEventRequest):
 
 
 @router.post("/audio-event")
-async def on_audio_event(request: Request, payload: AudioEventRequest):
-    """Register an audio peak for moment detection."""
+async def on_audio_event(
+    request: Request,
+    payload: AudioEventRequest,
+    current_user = Depends(get_current_user)
+):
+    """Register an audio peak for moment detection (scoped to authenticated streamer)."""
     ensure_agent_callback_registered()
+
+    # Get streamer_id from authenticated user
+    streamer_id = get_streamer_id_for_user(current_user)
+    if not streamer_id:
+        # Fallback to 1 for demo/single-streamer mode
+        streamer_id = 1
+
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
-        detector.add_audio_peak(peak_value=payload.peak_value, source=payload.source)
+        detector.add_audio_peak(
+            peak_value=payload.peak_value,
+            source=payload.source,
+            streamer_id=streamer_id
+        )
 
         return {
             "status": "ok",
             "audio_peak": payload.peak_value,
+            "streamer_id": streamer_id,
         }
 
     except Exception as e:
@@ -166,8 +189,8 @@ async def debug_callbacks():
 
 
 @router.post("/test")
-async def test_moment_detection(background_tasks: BackgroundTasks):
-    """Simulate a moment detection for testing."""
+async def test_moment_detection(background_tasks: BackgroundTasks, streamer_id: int = 1):
+    """Simulate a moment detection for testing (defaults to streamer 1)."""
     ensure_agent_callback_registered()
     try:
         from backend.core.moment_detector import get_detector
@@ -177,10 +200,10 @@ async def test_moment_detection(background_tasks: BackgroundTasks):
         hype_messages = ["PogChamp", "OMEGALUL", "clip it", "insane", "no way", "WHAT", "W W W", "hype hype", "!!!"]
         for i in range(15):
             msg = hype_messages[i % len(hype_messages)]
-            detector.add_chat_message("test", message=msg)
+            detector.add_chat_message("test", message=msg, streamer_id=streamer_id)
 
         # Simulate audio spike
-        detector.add_audio_peak(0.75, "test")
+        detector.add_audio_peak(0.75, "test", streamer_id=streamer_id)
 
         return {
             "status": "test_moment_sent",

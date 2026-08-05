@@ -32,19 +32,32 @@ async def websocket_agent_endpoint(websocket: WebSocket):
     """
     Agent WebSocket connection.
 
-    Agent connects with: wss://kazumee.app/ws/agent?token=AGENT_TOKEN
+    Agent connects with either:
+    - Authorization header: Authorization: Bearer <AGENT_TOKEN>
+    - Query param (fallback for testing): ?token=<AGENT_TOKEN>
 
     Cloud sends: {"cmd": "clip"} → Agent saves replay buffer
     Agent sends: {"type": "agent_online"} → Registration
+
+    CRITICAL: Token is verified before accept(); never logged (security).
     """
 
-    # Extract token from query params
-    token = websocket.query_params.get("token")
+    # Extract token from Authorization header first (preferred)
+    token = None
+    auth_header = websocket.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+
+    # Fallback to query param for testing (not recommended for production)
+    if not token:
+        token = websocket.query_params.get("token")
+
     if not token:
         await websocket.close(code=1008, reason="No token provided")
         return
 
     # Verify agent token and get streamer_id
+    # (token is NOT logged anywhere — verified locally, result only)
     streamer_id = verify_agent_token(token)
     if not streamer_id:
         await websocket.close(code=1008, reason="Invalid or expired token")
