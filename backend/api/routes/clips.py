@@ -793,7 +793,7 @@ def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 # AGENT CLIP INGEST - Autonomous agent uploads raw clips
 # ==============================================================================
 
-@router.post(AGENT_INGEST_ENDPOINT)
+@router.post("/ingest")
 async def ingest_clip(
 	clip: UploadFile = File(...),
 	ts: float = Form(...),
