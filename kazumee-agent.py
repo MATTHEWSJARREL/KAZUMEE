@@ -25,6 +25,10 @@ import time
 import threading
 import sys
 import ssl
+import urllib3
+
+# Suppress SSL warnings (Railway cert expired; test-only workaround)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 try:
     import obsws_python as obs
