@@ -297,29 +297,40 @@ class OBSSide:
 
 def upload_clip(path):
     """Upload finished clip to cloud."""
-    try:
-        if not os.path.exists(path):
-            status("err", f"Clip file not found: {path}")
-            return
+    if not os.path.exists(path):
+        status("err", f"Clip file not found: {path}")
+        return
 
-        file_size = os.path.getsize(path)
-        status("info", f"Uploading {file_size / 1024 / 1024:.1f} MB...")
+    file_size = os.path.getsize(path)
+    status("info", f"Uploading {file_size / 1024 / 1024:.1f} MB...")
 
-        with open(path, "rb") as f:
-            r = requests.post(
-                INGEST_URL,
-                headers={"Authorization": f"Bearer {STREAMER_TOKEN}"},
-                files={"clip": (os.path.basename(path), f, "video/mp4")},
-                data={"ts": time.time(), "source": "auto"},
-                timeout=300,  # 5 minutes for upload
-                verify=False,  # Skip SSL verification (Railway cert expired)
-            )
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            with open(path, "rb") as f:
+                r = requests.post(
+                    INGEST_URL,
+                    headers={"Authorization": f"Bearer {STREAMER_TOKEN}"},
+                    files={"clip": (os.path.basename(path), f, "video/mp4")},
+                    data={"ts": time.time(), "source": "auto"},
+                    timeout=300,
+                    verify=False,
+                )
 
-        if r.ok:
-            clip_id = r.json().get("id", "unknown")
-            status("ok", f"Clip uploaded! ID: {clip_id}")
-        else:
-            status("err", f"Upload failed ({r.status_code}): {r.text[:200]}")
+            if r.ok:
+                clip_id = r.json().get("id", "unknown")
+                status("ok", f"Clip uploaded! ID: {clip_id}")
+                return
+            else:
+                status("err", f"Upload failed ({r.status_code}): {r.text[:200]}")
+                return
+        except Exception as e:
+            if attempt < max_retries:
+                wait_time = 2 ** attempt
+                status("info", f"Upload attempt {attempt}/{max_retries} failed, retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                status("err", f"Upload error (attempt {attempt}/{max_retries}): {e}")
 
     except Exception as e:
         status("err", f"Upload error: {e}")
