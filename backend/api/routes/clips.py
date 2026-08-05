@@ -835,28 +835,28 @@ async def ingest_clip(
 
 		# Create storage path
 		os.makedirs(BASE_CLIPS_DIR, exist_ok=True)
-		clip_id = str(uuid.uuid4())
-		file_path = os.path.join(BASE_CLIPS_DIR, f"{clip_id}.mp4")
+		file_uuid = str(uuid.uuid4())
+		file_path = os.path.join(BASE_CLIPS_DIR, f"{file_uuid}.mp4")
 
 		# Save uploaded file
 		with open(file_path, "wb") as f:
 			shutil.copyfileobj(clip.file, f)
 
 		file_size = os.path.getsize(file_path)
-		logger.info(f"Ingested clip {clip_id} ({file_size} bytes) from streamer {streamer_id}")
+		logger.info(f"Ingested clip from {file_uuid} ({file_size} bytes) for streamer {streamer_id}")
 
 		# Create DB record (minimal, will be enriched by processing pipeline)
 		new_clip = Clip(
-			id=clip_id,
+			stream_session_id=1,  # Default session (TODO: resolve from streamer)
 			streamer_id=streamer_id,
-			title=f"Auto-detected clip {clip_id[:8]}",
+			title=f"Auto-detected clip {file_uuid[:8]}",
 			description="Clip detected by autonomous agent",
 			status="pending",
-			source="agent_autonomous" if source == "auto" else "agent_manual",
+			requested_by_type="ai",
+			requested_by_name="Kazumee Agent",
 			file_path=file_path,
-			file_size=file_size,
 			duration_seconds=0,  # Will be calculated by processing pipeline
-			detected_at=datetime.fromtimestamp(ts) if ts else datetime.utcnow(),
+			quality_score=0.5,  # Default; will be updated
 		)
 		db.add(new_clip)
 		db.commit()
@@ -866,12 +866,12 @@ async def ingest_clip(
 		insert_stream_event(
 			streamer_id=streamer_id,
 			event_type="EXTRACTION_STARTED",
-			clip_id=clip_id,
+			clip_id=str(new_clip.id),
 			metadata={"source": source}
 		)
 
 		return {
-			"id": clip_id,
+			"id": new_clip.id,
 			"status": "processing",
 			"file_size": file_size,
 		}
