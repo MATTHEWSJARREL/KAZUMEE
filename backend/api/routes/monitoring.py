@@ -11,7 +11,6 @@ from pathlib import Path
 from backend.core.auth import get_current_user, get_streamer_id_for_user
 from backend.core.logger import get_event_log, EventType
 from backend.core.clip_storage import get_clip_storage
-from backend.db.models import User
 
 router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
 
@@ -27,7 +26,7 @@ async def health_check():
 
 
 @router.get("/stats")
-async def get_stats(current_user: User = Depends(get_current_user)):
+async def get_stats(current_user = Depends(get_current_user)):
     """Get system statistics and metrics"""
     streamer_id = await get_streamer_id_for_user(current_user.id)
 
