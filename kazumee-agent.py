@@ -332,9 +332,6 @@ def upload_clip(path):
             else:
                 status("err", f"Upload error (attempt {attempt}/{max_retries}): {e}")
 
-    except Exception as e:
-        status("err", f"Upload error: {e}")
-
 
 # ==============================================================================
 # CLOUD SIDE
