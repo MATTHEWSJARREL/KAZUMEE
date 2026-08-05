@@ -308,6 +308,7 @@ def upload_clip(path):
                 files={"clip": (os.path.basename(path), f, "video/mp4")},
                 data={"ts": time.time(), "source": "auto"},
                 timeout=300,  # 5 minutes for upload
+                verify=False,  # Skip SSL verification (Railway cert expired)
             )
 
         if r.ok:
