@@ -72,7 +72,7 @@ class MomentDetector:
         """Register callback for when a moment is detected"""
         self._callbacks.append(callback)
 
-    def add_chat_message(self, source: str = "twitch", message: str = "", streamer_id: int):
+    def add_chat_message(self, streamer_id: int, source: str = "twitch", message: str = ""):
         """Register a chat message (now extracts signals too)"""
         current_time = time.time()
 
@@ -100,7 +100,7 @@ class MomentDetector:
 
         self._check_moment_triggered(source, streamer_id)
 
-    def add_audio_peak(self, peak_value: float, source: str = "obs", streamer_id: int):
+    def add_audio_peak(self, streamer_id: int, peak_value: float, source: str = "obs"):
         """Register an audio peak (0.0-1.0)"""
         current_time = time.time()
 

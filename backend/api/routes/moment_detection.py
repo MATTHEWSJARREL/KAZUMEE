@@ -106,9 +106,9 @@ async def on_chat_event(
         from backend.core.moment_detector import get_detector
         detector = get_detector()
         detector.add_chat_message(
+            streamer_id=streamer_id,
             source=payload.source,
-            message=payload.message,
-            streamer_id=streamer_id
+            message=payload.message
         )
 
         return {
@@ -140,9 +140,9 @@ async def on_audio_event(
         from backend.core.moment_detector import get_detector
         detector = get_detector()
         detector.add_audio_peak(
+            streamer_id=streamer_id,
             peak_value=payload.peak_value,
-            source=payload.source,
-            streamer_id=streamer_id
+            source=payload.source
         )
 
         return {
@@ -200,10 +200,10 @@ async def test_moment_detection(background_tasks: BackgroundTasks, streamer_id: 
         hype_messages = ["PogChamp", "OMEGALUL", "clip it", "insane", "no way", "WHAT", "W W W", "hype hype", "!!!"]
         for i in range(15):
             msg = hype_messages[i % len(hype_messages)]
-            detector.add_chat_message("test", message=msg, streamer_id=streamer_id)
+            detector.add_chat_message(streamer_id=streamer_id, source="test", message=msg)
 
         # Simulate audio spike
-        detector.add_audio_peak(0.75, "test", streamer_id=streamer_id)
+        detector.add_audio_peak(streamer_id=streamer_id, peak_value=0.75, source="test")
 
         return {
             "status": "test_moment_sent",
