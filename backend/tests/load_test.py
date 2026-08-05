@@ -237,7 +237,7 @@ class StressTestUser(HttpUser):
 def on_test_start(environment, **kwargs):
     """Called when test starts"""
     print("\n" + "=" * 60)
-    print("🚀 LOAD TEST STARTED")
+    print("[START] LOAD TEST STARTED")
     print("=" * 60)
     print(f"Target: {environment.host}")
     print(f"Start time: {datetime.now(timezone.utc).isoformat()}")
@@ -248,7 +248,7 @@ def on_test_start(environment, **kwargs):
 def on_test_stop(environment, **kwargs):
     """Called when test stops"""
     print("\n" + "=" * 60)
-    print("✅ LOAD TEST COMPLETED")
+    print("[DONE] LOAD TEST COMPLETED")
     print("=" * 60)
     print(f"End time: {datetime.now(timezone.utc).isoformat()}")
     print(f"Total requests: {environment.stats.total.num_requests}")
