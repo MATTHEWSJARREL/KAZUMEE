@@ -14,43 +14,18 @@ from backend.core.taste import extract_tags, extract_tags_from_text, update_tast
 from backend.core.export import queue_short_form_export
 from backend.core.auth import get_current_user, get_streamer_id_for_user
 from backend.core.event_store import insert_stream_event
+from backend.api.models.clip_models import (
+	StreamClipRequest,
+	ClipReviewRequest,
+	ClipUpdateRequest,
+	ClipCreateRequest,
+	ClipExportRequest,
+)
+from backend.core.security import ValidationError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class StreamClipRequest(BaseModel):
-	clip_id: int
-
-
-class ClipReviewRequest(BaseModel):
-	clip_id: int
-	action: str  # 'approve', 'reject', 'delete'
-	notes: Optional[str] = None
-
-
-class ClipUpdateRequest(BaseModel):
-	title: Optional[str] = None
-	description: Optional[str] = None
-	notes: Optional[str] = None
-	tags: Optional[list] = None
-
-
-class ClipCreateRequest(BaseModel):
-	file_path: str
-	requested_by_type: str
-	requested_by_id: Optional[str] = None
-	requested_by_name: Optional[str] = None
-	title: Optional[str] = None
-	description: Optional[str] = None
-	stream_session_id: int = 1  # Default for now
-
-
-class ClipExportRequest(BaseModel):
-	preset: str  # tiktok | shorts | reels
-	watermark_text: Optional[str] = None
-	subtitles_path: Optional[str] = None
 
 
 # base dir allowed for opening files (prevent arbitrary access)
@@ -334,17 +309,20 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 	"""Approve or reject a clip. Use DELETE endpoint to delete clips."""
 	from backend.core.logger import log_event, EventType
 
-	user = get_current_user(request, required=True)
-	if user.role != "streamer":
-		raise HTTPException(status_code=403, detail="Streamer role required")
+	try:
+		user = get_current_user(request, required=True)
+		if user.role != "streamer":
+			raise HTTPException(status_code=403, detail="Streamer role required")
 
-	streamer_id = get_streamer_id_for_user(user)
-	if not streamer_id:
-		raise HTTPException(status_code=403, detail="Not a streamer")
+		streamer_id = get_streamer_id_for_user(user)
+		if not streamer_id:
+			raise HTTPException(status_code=403, detail="Not a streamer")
 
-	clip = db.query(Clip).filter(Clip.id == req.clip_id, Clip.streamer_id == streamer_id).first()
-	if not clip:
-		raise HTTPException(status_code=404, detail="Clip not found")
+		clip = db.query(Clip).filter(Clip.id == req.clip_id, Clip.streamer_id == streamer_id).first()
+		if not clip:
+			raise HTTPException(status_code=404, detail="Clip not found")
+	except ValidationError as e:
+		raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
 
 	if req.action == "approve":
 		clip.status = "approved"

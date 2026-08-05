@@ -69,6 +69,11 @@ from backend.core.pricing import limit_violation
 # Removed: voice_agent (v1.1+ feature, requires speech_recognition library)
 from backend.core.rate_limiter import limiter
 from backend.core.event_bus import init_event_bus, get_event_bus
+from backend.core.security_middleware import (
+    SecurityHeadersMiddleware,
+    RequestLoggingMiddleware,
+    HTTPSRedirectMiddleware,
+)
 
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
@@ -851,6 +856,14 @@ def _allowed_cors_headers() -> list[str]:
     return ["*"]
 
 # --------------------------------------------------
+# SECURITY MIDDLEWARE
+# --------------------------------------------------
+# Order matters: add in reverse order (last added = first executed)
+app.add_middleware(HTTPSRedirectMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# --------------------------------------------------
 # CORS
 # --------------------------------------------------
 app.add_middleware(
@@ -861,18 +874,6 @@ app.add_middleware(
     allow_methods=_allowed_cors_methods(),
     allow_headers=_allowed_cors_headers(),
 )
-
-
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-    if request.url.scheme == "https":
-        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    return response
 
 # --------------------------------------------------
 # Routes
