@@ -353,6 +353,54 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         print("[OK] Database tables initialized")
 
+        # Create database indexes for performance optimization
+        try:
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                # Add indexes for common clip queries
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_status_idx
+                    ON clips (status)
+                    WHERE status IN ('pending', 'approved', 'rejected');
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_created_at_idx
+                    ON clips (created_at DESC);
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_streamer_status_idx
+                    ON clips (streamer_id, status);
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_streamer_created_idx
+                    ON clips (streamer_id, created_at DESC);
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_status_created_idx
+                    ON clips (status, created_at DESC)
+                    WHERE status IN ('pending', 'approved', 'rejected');
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_export_status_idx
+                    ON clips (export_status)
+                    WHERE export_status IS NOT NULL;
+                """))
+                db.execute(text("""
+                    CREATE INDEX IF NOT EXISTS clips_public_created_idx
+                    ON clips (is_public, created_at DESC)
+                    WHERE is_public = true;
+                """))
+                db.commit()
+                print("[OK] Database indexes created/verified")
+            except Exception as idx_error:
+                db.rollback()
+                print(f"[WARN] Failed to create indexes: {idx_error}")
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[WARN] Index initialization failed: {e}")
+
         # Create default streamer and session if they don't exist
         db = SessionLocal()
         try:
