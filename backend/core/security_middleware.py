@@ -49,7 +49,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
 
         # Remove sensitive headers
-        response.headers.pop("Server", None)
+        try:
+            del response.headers["Server"]
+        except KeyError:
+            pass
 
         return response
 
