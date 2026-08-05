@@ -168,6 +168,7 @@ async def debug_callbacks():
 @router.post("/test")
 async def test_moment_detection(background_tasks: BackgroundTasks):
     """Simulate a moment detection for testing."""
+    ensure_agent_callback_registered()
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
