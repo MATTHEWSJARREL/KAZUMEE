@@ -238,35 +238,129 @@ fixture 'db_session' not found
 ```
 Solution: Fixtures are in `conftest.py`. Ensure test file imports from same directory or `conftest.py` is in parent.
 
+## Load Testing
+
+Load test suite using Locust for simulating 100+ concurrent moments and verifying system stability under stress.
+
+### Load Test Structure
+
+```
+backend/tests/load_test.py
+├── ClipPipelineLoadTest: Realistic user behavior
+│   ├── detect_moment (5x weight - most frequent)
+│   ├── list_pending_clips (2x weight)
+│   ├── check_clips_generated (2x weight)
+│   ├── approve_clip (1x weight)
+│   ├── reject_clip (1x weight)
+│   ├── get_storage_stats (1x weight)
+│   └── get_monitoring_stats (1x weight)
+└── StressTestUser: Aggressive stress testing
+    └── rapid_moment_detection (minimal wait times)
+```
+
+### Running Load Tests
+
+#### Normal Load (Recommended Start)
+```bash
+locust -f backend/tests/load_test.py \
+  --host=http://localhost:8000 \
+  -u 100 \
+  -r 10 \
+  -t 5m
+```
+
+- `-u 100`: 100 concurrent users
+- `-r 10`: Spawn 10 new users per second
+- `-t 5m`: Run for 5 minutes
+
+#### Stress Test (500 Concurrent Users)
+```bash
+locust -f backend/tests/load_test.py \
+  --host=http://localhost:8000 \
+  -u 500 \
+  -r 50 \
+  -t 10m
+```
+
+#### Spike Test (1000 Concurrent Users)
+```bash
+locust -f backend/tests/load_test.py \
+  --host=http://localhost:8000 \
+  -u 1000 \
+  -r 100 \
+  -t 5m
+```
+
+#### Headless Mode (CI/CD)
+```bash
+locust -f backend/tests/load_test.py \
+  --host=http://localhost:8000 \
+  -u 100 -r 10 -t 5m \
+  --headless \
+  -c 4 \
+  --csv=results
+```
+
+- `--headless`: No web UI
+- `-c 4`: Use 4 CPU cores
+- `--csv=results`: Export results to CSV
+
+#### Interactive Web UI
+```bash
+locust -f backend/tests/load_test.py \
+  --host=http://localhost:8000
+```
+
+Then open http://localhost:8089 in browser.
+
+### Expected Metrics at 100 Concurrent Users
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| Response Time (p95) | <200ms | ✅ |
+| Success Rate | >99% | ✅ |
+| Error Rate | <1% | ✅ |
+| Requests/Second | >50 | ✅ |
+
+### Critical Thresholds
+
+- **p95 > 1000ms**: Performance degradation ⚠️
+- **Error rate > 5%**: Potential bottleneck 🚨
+- **p99 > 5000ms**: System struggling 🔴
+
+### Load Test Workflow
+
+1. Start with normal load (100 users over 5 minutes)
+2. Monitor response times and error rates
+3. If p95 < 500ms, increase to 500 concurrent users
+4. If p95 < 1000ms, increase to 1000 concurrent users
+5. Stop when p95 exceeds acceptable threshold or error rate spikes
+
+### Railway Deployment Testing
+
+To test against Railway deployment:
+
+```bash
+locust -f backend/tests/load_test.py \
+  --host=https://your-railway-domain.com \
+  -u 100 -r 10 -t 5m
+```
+
+Monitor Railway metrics dashboard simultaneously for:
+- CPU usage
+- Memory usage
+- Database connection pool
+- Network I/O
+
 ## Integration Tests (Coming Next)
 
-After unit tests pass, add integration tests for:
+After load tests pass, add integration tests for:
 
 - Full clip creation workflow (detect → create → store → export)
 - End-to-end API testing
 - Database transaction handling
 - File I/O operations
 - Error recovery scenarios
-
-## Performance Testing (After Load Testing)
-
-Benchmark critical paths:
-
-```python
-@pytest.mark.benchmark
-def test_clip_query_performance(benchmark):
-    """Benchmark common clip query"""
-    def query():
-        return db.query(Clip).filter_by(streamer_id=1).all()
-    
-    result = benchmark(query)
-    assert len(result) > 0
-```
-
-Run with:
-```bash
-pytest backend/tests/ --benchmark-only
-```
 
 ## CI/CD Integration
 

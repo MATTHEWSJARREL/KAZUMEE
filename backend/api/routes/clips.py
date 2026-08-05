@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -6,6 +6,8 @@ from typing import List, Optional
 import os
 import logging
 from datetime import datetime
+import shutil
+import uuid
 
 from backend.database.session import get_db, SessionLocal
 from backend.database.models.clip import Clip
@@ -784,3 +786,86 @@ def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 			"download": f"{base_url}api/clips/download/{clip.id}" if file_exists else None,
 		}
 	}
+
+
+# ==============================================================================
+# AGENT CLIP INGEST - Autonomous agent uploads raw clips
+# ==============================================================================
+
+@router.post("/ingest")
+async def ingest_clip(
+	clip: UploadFile = File(...),
+	ts: float = Form(...),
+	source: str = Form(default="auto"),
+	request: Request = None,
+	db: Session = Depends(get_db)
+):
+	"""
+	Agent uploads a raw clip file.
+
+	The agent (running on streamer's PC) sends:
+	- clip: multipart file (MP4/WebM from OBS replay buffer)
+	- ts: timestamp when clip was detected
+	- source: "auto" (autonomous) or "manual"
+
+	Returns: {"id": clip_id, "status": "processing"}
+	"""
+	try:
+		# Authenticate via Authorization header
+		user = get_current_user(request, required=True)
+		streamer_id = get_streamer_id_for_user(user)
+		if not streamer_id:
+			raise HTTPException(status_code=403, detail="Not a streamer")
+
+		# Validate file
+		if not clip.filename or not clip.content_type or "video" not in clip.content_type:
+			raise HTTPException(status_code=400, detail="Invalid video file")
+
+		# Create storage path
+		os.makedirs(BASE_CLIPS_DIR, exist_ok=True)
+		clip_id = str(uuid.uuid4())
+		file_path = os.path.join(BASE_CLIPS_DIR, f"{clip_id}.mp4")
+
+		# Save uploaded file
+		with open(file_path, "wb") as f:
+			shutil.copyfileobj(clip.file, f)
+
+		file_size = os.path.getsize(file_path)
+		logger.info(f"Ingested clip {clip_id} ({file_size} bytes) from streamer {streamer_id}")
+
+		# Create DB record (minimal, will be enriched by processing pipeline)
+		new_clip = Clip(
+			id=clip_id,
+			streamer_id=streamer_id,
+			title=f"Auto-detected clip {clip_id[:8]}",
+			description="Clip detected by autonomous agent",
+			status="pending",
+			source="agent_autonomous" if source == "auto" else "agent_manual",
+			file_path=file_path,
+			file_size=file_size,
+			duration_seconds=0,  # Will be calculated by processing pipeline
+			detected_at=datetime.fromtimestamp(ts) if ts else datetime.utcnow(),
+		)
+		db.add(new_clip)
+		db.commit()
+		db.refresh(new_clip)
+
+		# Log event
+		insert_stream_event(
+			streamer_id=streamer_id,
+			event_type="EXTRACTION_STARTED",
+			clip_id=clip_id,
+			metadata={"source": source}
+		)
+
+		return {
+			"id": clip_id,
+			"status": "processing",
+			"file_size": file_size,
+		}
+
+	except HTTPException:
+		raise
+	except Exception as e:
+		logger.error(f"Clip ingest failed: {e}")
+		raise HTTPException(status_code=500, detail=f"Ingest failed: {str(e)}")
