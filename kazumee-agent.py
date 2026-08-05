@@ -348,7 +348,7 @@ class CloudSide:
             time.sleep(RECONNECT_SECS)
 
     def _on_open(self, ws):
-        status("ok", "Connected to Kazumee cloud ✓")
+        status("ok", "Connected to Kazumee cloud [OK]")
         status("ok", "Agent ready - waiting for hype moments...")
         ws.send(json.dumps({"type": "agent_online"}))
 
@@ -359,7 +359,7 @@ class CloudSide:
             return
 
         if data.get("cmd") == "clip":
-            status("info", "🔴 HYPE MOMENT DETECTED - capturing clip...")
+            status("info", "[CLIP] HYPE MOMENT DETECTED - capturing clip...")
             self.obs.trigger_clip()
         elif data.get("cmd") == "ping":
             ws.send(json.dumps({"type": "pong"}))

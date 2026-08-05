@@ -14,8 +14,9 @@ from backend.database.models.clip import Clip
 from backend.database.models.streamer import Streamer
 from backend.core.taste import extract_tags, extract_tags_from_text, update_taste_profile, score_clip
 from backend.core.export import queue_short_form_export
-from backend.core.auth import get_current_user, get_streamer_id_for_user
+from backend.core.auth import get_current_user, get_streamer_id_for_user, verify_agent_token
 from backend.core.event_store import insert_stream_event
+from backend.api.agent_protocol import AGENT_INGEST_ENDPOINT
 from backend.api.models.clip_models import (
 	StreamClipRequest,
 	ClipReviewRequest,
@@ -792,7 +793,7 @@ def get_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 # AGENT CLIP INGEST - Autonomous agent uploads raw clips
 # ==============================================================================
 
-@router.post("/ingest")
+@router.post(AGENT_INGEST_ENDPOINT)
 async def ingest_clip(
 	clip: UploadFile = File(...),
 	ts: float = Form(...),
@@ -801,21 +802,32 @@ async def ingest_clip(
 	db: Session = Depends(get_db)
 ):
 	"""
-	Agent uploads a raw clip file.
+	Agent uploads a raw clip file via agent token.
 
 	The agent (running on streamer's PC) sends:
 	- clip: multipart file (MP4/WebM from OBS replay buffer)
 	- ts: timestamp when clip was detected
 	- source: "auto" (autonomous) or "manual"
+	- Authorization: Bearer <agent_token>
 
 	Returns: {"id": clip_id, "status": "processing"}
 	"""
 	try:
-		# Authenticate via Authorization header
-		user = get_current_user(request, required=True)
-		streamer_id = get_streamer_id_for_user(user)
+		# Authenticate via agent token (Bearer header or query param)
+		token = None
+		auth_header = request.headers.get("Authorization", "")
+		if auth_header.startswith("Bearer "):
+			token = auth_header[7:].strip()
+
+		if not token:
+			token = request.query_params.get("token")
+
+		if not token:
+			raise HTTPException(status_code=401, detail="No agent token provided")
+
+		streamer_id = verify_agent_token(token)
 		if not streamer_id:
-			raise HTTPException(status_code=403, detail="Not a streamer")
+			raise HTTPException(status_code=401, detail="Invalid or expired agent token")
 
 		# Validate file
 		if not clip.filename or not clip.content_type or "video" not in clip.content_type:

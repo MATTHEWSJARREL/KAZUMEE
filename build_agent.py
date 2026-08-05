@@ -50,7 +50,7 @@ def build():
         exe_path = "dist/KazumeeAgent.exe" if sys.platform == "win32" else "dist/KazumeeAgent"
         if os.path.exists(exe_path):
             print("\n" + "=" * 60)
-            print("✅ BUILD SUCCESSFUL")
+            print("[SUCCESS] BUILD SUCCESSFUL")
             print("=" * 60)
             print(f"\nExecutable: {exe_path}")
             print(f"Size: {os.path.getsize(exe_path) / 1024 / 1024:.1f} MB")

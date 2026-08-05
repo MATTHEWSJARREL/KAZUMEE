@@ -115,10 +115,10 @@ python kazumee-agent.py
 
 ## Security
 
-- 🔒 Token is saved locally in `~/.kazumee_agent_token`
-- 🔐 Only accessible from your computer
-- 🚫 Never share your token
-- ⚠️ Only run on trusted computers
+- [SECURE] Token is saved locally in `~/.kazumee_agent_token`
+- [PROTECTED] Only accessible from your computer
+- [WARNING] Never share your token
+- [CAUTION] Only run on trusted computers
 
 ## Support
 
@@ -133,4 +133,4 @@ For more help, check the Kazumee dashboard → Monitoring → Errors.
 
 ---
 
-**Ready to auto-clip?** Double-click `KazumeeAgent.exe` and get started! 🚀
+**Ready to auto-clip?** Double-click `KazumeeAgent.exe` and get started!

@@ -255,3 +255,126 @@ def resolve_streamer_id(request: Request, user: Optional[User]) -> Optional[int]
         return get_streamer_id_for_user(user)
 
     return None
+
+
+# ==============================================================================
+# AGENT TOKEN MANAGEMENT (long-lived, per-streamer)
+# ==============================================================================
+
+def create_agent_token(streamer_id: int, ttl_days: int = 30) -> str:
+    """
+    Generate a long-lived agent token for a streamer.
+
+    Returns: raw token string (only shown once to user)
+    Store: token_hash in DB for verification
+    """
+    from backend.database.models.agent_token import AgentToken
+
+    db = SessionLocal()
+    try:
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        expires_at = datetime.utcnow() + timedelta(days=ttl_days)
+
+        # Revoke previous token for this streamer (one active per streamer)
+        previous = db.query(AgentToken).filter(
+            AgentToken.streamer_id == streamer_id,
+            AgentToken.revoked_at == None
+        ).first()
+        if previous:
+            previous.revoked_at = datetime.utcnow()
+
+        agent_token = AgentToken(
+            streamer_id=streamer_id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        db.add(agent_token)
+        db.commit()
+        return raw_token
+    finally:
+        db.close()
+
+
+def verify_agent_token(token: str) -> Optional[int]:
+    """
+    Verify an agent token. Returns streamer_id if valid, else None.
+
+    A token is valid if:
+    - token_hash matches a stored hash
+    - not expired
+    - not revoked
+    """
+    from backend.database.models.agent_token import AgentToken
+
+    if not token:
+        return None
+
+    db = SessionLocal()
+    try:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        agent_token = db.query(AgentToken).filter(
+            AgentToken.token_hash == token_hash
+        ).first()
+
+        if not agent_token:
+            return None
+
+        # Check if expired
+        if agent_token.expires_at < datetime.utcnow():
+            return None
+
+        # Check if revoked
+        if agent_token.revoked_at is not None:
+            return None
+
+        return agent_token.streamer_id
+    finally:
+        db.close()
+
+
+def get_agent_token_metadata(streamer_id: int) -> Optional[dict]:
+    """
+    Get metadata about a streamer's active agent token (never return the token itself).
+    """
+    from backend.database.models.agent_token import AgentToken
+
+    db = SessionLocal()
+    try:
+        token = db.query(AgentToken).filter(
+            AgentToken.streamer_id == streamer_id,
+            AgentToken.revoked_at == None
+        ).order_by(AgentToken.created_at.desc()).first()
+
+        if not token:
+            return None
+
+        return {
+            "exists": True,
+            "created_at": token.created_at.isoformat(),
+            "expires_at": token.expires_at.isoformat(),
+            "revoked": False
+        }
+    finally:
+        db.close()
+
+
+def revoke_agent_token(streamer_id: int) -> bool:
+    """Revoke a streamer's active agent token."""
+    from backend.database.models.agent_token import AgentToken
+
+    db = SessionLocal()
+    try:
+        token = db.query(AgentToken).filter(
+            AgentToken.streamer_id == streamer_id,
+            AgentToken.revoked_at == None
+        ).first()
+
+        if not token:
+            return False
+
+        token.revoked_at = datetime.utcnow()
+        db.commit()
+        return True
+    finally:
+        db.close()

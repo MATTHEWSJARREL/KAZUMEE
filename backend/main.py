@@ -350,6 +350,7 @@ async def lifespan(app: FastAPI):
         from backend.database.models.user import User
         from backend.database.models.user_session import UserSession
         from backend.database.models.stream_event import StreamEvent
+        from backend.database.models.agent_token import AgentToken
 
         Base.metadata.create_all(bind=engine)
         print("[OK] Database tables initialized")
