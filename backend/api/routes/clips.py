@@ -381,9 +381,9 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 	return {"status": "success", "message": f"Clip {req.action}d successfully"}
 
 
-@router.patch("/{clip_id:int}")
+@router.put("/{clip_id:int}")
 def update_clip(clip_id: int, req: ClipUpdateRequest, request: Request, db: Session = Depends(get_db)):
-	"""Update clip metadata (title, description, notes, tags)"""
+	"""Update clip metadata (title, description, notes, tags). Partial updates supported."""
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
 		raise HTTPException(status_code=403, detail="Streamer role required")
