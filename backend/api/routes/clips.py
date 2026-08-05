@@ -30,6 +30,13 @@ class ClipReviewRequest(BaseModel):
 	notes: Optional[str] = None
 
 
+class ClipUpdateRequest(BaseModel):
+	title: Optional[str] = None
+	description: Optional[str] = None
+	notes: Optional[str] = None
+	tags: Optional[list] = None
+
+
 class ClipCreateRequest(BaseModel):
 	file_path: str
 	requested_by_type: str
@@ -372,6 +379,41 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 	db.commit()
 
 	return {"status": "success", "message": f"Clip {req.action}d successfully"}
+
+
+@router.patch("/{clip_id:int}")
+def update_clip(clip_id: int, req: ClipUpdateRequest, request: Request, db: Session = Depends(get_db)):
+	"""Update clip metadata (title, description, notes, tags)"""
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
+
+	clip = db.query(Clip).filter(Clip.id == clip_id, Clip.streamer_id == streamer_id).first()
+	if not clip:
+		raise HTTPException(status_code=404, detail="Clip not found")
+
+	# Update only provided fields
+	if req.title is not None:
+		clip.title = req.title
+	if req.description is not None:
+		clip.description = req.description
+	if req.notes is not None:
+		clip.notes = req.notes
+	if req.tags is not None:
+		clip.tags = req.tags
+
+	db.commit()
+
+	return {
+		"status": "success",
+		"message": "Clip updated successfully",
+		"clip_id": clip.id,
+		"updated_fields": [k for k in req.dict().keys() if getattr(req, k) is not None]
+	}
 
 
 @router.get("/storage/stats")
