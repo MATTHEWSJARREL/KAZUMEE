@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone } from 'lucide-react';
+import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { getApiUrl } from '@/utils/api';
 import styles from './clips.module.css';
 import VerticalPreviewModal from './VerticalPreviewModal';
@@ -182,8 +182,11 @@ export default function ClipsPage() {
       return;
     }
     try {
-      // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`${getApiUrl()}/dev/clips/${clip.id}/stream`);
+      const response = await fetch(`${getApiUrl()}/api/clips/download/${clip.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }
@@ -196,23 +199,78 @@ export default function ClipsPage() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      console.log('Clip downloaded successfully');
+      console.log('✓ Clip downloaded successfully');
     } catch (err) {
       console.error('Download failed:', err);
-      alert(`Failed to download clip: ${err.message}`);
+      alert(`❌ Failed to download clip: ${err.message}`);
+    }
+  };
+
+  const handleApprove = async (clip) => {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/clips/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          clip_id: clip.id,
+          action: 'approve',
+          notes: 'Approved from dashboard'
+        })
+      });
+      if (response.ok) {
+        alert('✓ Clip approved!');
+        fetchClips();
+      } else {
+        alert('❌ Approve failed');
+      }
+    } catch (error) {
+      console.error('Approve error:', error);
+      alert('❌ Error: ' + error.message);
+    }
+  };
+
+  const handleReject = async (clip) => {
+    if (!confirm(`Reject "${clip.title}"?`)) return;
+    try {
+      const response = await fetch(`${getApiUrl()}/api/clips/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          clip_id: clip.id,
+          action: 'reject',
+          notes: 'Rejected from dashboard'
+        })
+      });
+      if (response.ok) {
+        alert('✓ Clip rejected');
+        fetchClips();
+      } else {
+        alert('❌ Reject failed');
+      }
+    } catch (error) {
+      console.error('Reject error:', error);
+      alert('❌ Error: ' + error.message);
     }
   };
 
   const handleDelete = async (clip) => {
     if (!confirm(`Delete "${clip.title}"?`)) return;
     try {
-      // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`${getApiUrl()}/dev/clips/${clip.id}`, {
-        method: 'DELETE'
+      const response = await fetch(`${getApiUrl()}/api/clips/${clip.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
       });
       if (response.ok) {
         console.log('Clip deleted');
-        alert('Clip deleted!');
+        alert('✓ Clip deleted!');
         fetchClips(); // Refresh
       } else {
         alert('❌ Delete failed');
@@ -422,6 +480,26 @@ export default function ClipsPage() {
                 </div>
 
                 <div className={styles.clipActions}>
+                  {clip.status === 'pending' && (
+                    <>
+                      <button
+                        className={styles.actionBtn}
+                        title="Approve clip"
+                        onClick={() => handleApprove(clip)}
+                        style={{ color: '#10b981' }}
+                      >
+                        <ThumbsUp size={18} />
+                      </button>
+                      <button
+                        className={styles.actionBtn}
+                        title="Reject clip"
+                        onClick={() => handleReject(clip)}
+                        style={{ color: '#ef4444' }}
+                      >
+                        <ThumbsDown size={18} />
+                      </button>
+                    </>
+                  )}
                   <button
                     className={styles.actionBtn}
                     title="Preview vertical (9:16)"
