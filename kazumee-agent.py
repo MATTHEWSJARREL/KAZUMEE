@@ -29,9 +29,11 @@ try:
     import obsws_python as obs
     import websocket
     import requests
+    from pystray import Icon, Menu, MenuItem
+    from PIL import Image, ImageDraw
 except ImportError:
     print("[FAIL] Missing dependencies. Run:")
-    print("  pip install obsws-python websocket-client requests")
+    print("  pip install obsws-python websocket-client requests pystray pillow")
     sys.exit(1)
 
 
@@ -49,6 +51,139 @@ INGEST_URL = os.getenv("INGEST_URL", "https://kazumee-production.up.railway.app/
 STREAMER_TOKEN = os.getenv("STREAMER_TOKEN", "")  # Get from Kazumee dashboard
 
 RECONNECT_SECS = 5
+TOKEN_STORAGE_FILE = os.path.expanduser("~/.kazumee_agent_token")
+AUTH_SERVER_PORT = 9284
+
+
+# ==============================================================================
+# TOKEN MANAGEMENT
+# ==============================================================================
+
+def load_token():
+    """Load saved token from disk."""
+    if os.path.exists(TOKEN_STORAGE_FILE):
+        try:
+            with open(TOKEN_STORAGE_FILE, 'r') as f:
+                return f.read().strip()
+        except:
+            pass
+    return None
+
+def save_token(token):
+    """Save token to disk."""
+    try:
+        with open(TOKEN_STORAGE_FILE, 'w') as f:
+            f.write(token)
+    except Exception as e:
+        status("err", f"Failed to save token: {e}")
+
+def open_login_in_browser():
+    """Open browser to login page."""
+    import webbrowser
+    login_url = f"https://kazumee.vercel.app/auth?redirect=http://127.0.0.1:{AUTH_SERVER_PORT}/auth-callback"
+    webbrowser.open(login_url)
+    status("info", "Opening login page in browser...")
+
+
+# ==============================================================================
+# LOCALHOST AUTH SERVER
+# ==============================================================================
+
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+import json
+
+auth_server_ready = threading.Event()
+
+class AuthCallbackHandler(BaseHTTPRequestHandler):
+    """Handle OAuth redirect from browser."""
+
+    def do_GET(self):
+        """Handle GET /auth-callback?token=..."""
+        parsed = urlparse(self.path)
+        if parsed.path == '/auth-callback':
+            query = parse_qs(parsed.query)
+            token = query.get('token', [None])[0]
+
+            if token:
+                global STREAMER_TOKEN
+                STREAMER_TOKEN = token
+                save_token(token)
+                status("ok", f"Token saved successfully!")
+
+                # Return success page
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                html = """
+                    <html>
+                    <head><title>Kazumee Agent - Connected</title></head>
+                    <body style="font-family: Arial; text-align: center; padding: 50px;">
+                        <h2>[SUCCESS] Connected!</h2>
+                        <p>Your Kazumee Agent is now connected.</p>
+                        <p>You can close this window and return to the agent.</p>
+                    </body>
+                    </html>
+                """
+                self.wfile.write(html.encode('utf-8'))
+            else:
+                self.send_response(400)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(b"<h2>[ERROR] No token received</h2>")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        pass  # Suppress server logs
+
+def start_auth_server():
+    """Start localhost auth server."""
+    try:
+        server = HTTPServer(('127.0.0.1', AUTH_SERVER_PORT), AuthCallbackHandler)
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        status("info", "Auth server started on http://127.0.0.1:9284")
+        return server
+    except Exception as e:
+        status("err", f"Failed to start auth server: {e}")
+        return None
+
+
+# ==============================================================================
+# SYSTEM TRAY ICON
+# ==============================================================================
+
+def create_tray_icon(is_connected=False):
+    """Create system tray icon."""
+    size = 64
+    image = Image.new('RGB', (size, size), color='black')
+    draw = ImageDraw.Draw(image)
+
+    # Draw circle (green if connected, red if not)
+    color = '#00ff00' if is_connected else '#ff0000'
+    draw.ellipse([10, 10, size-10, size-10], fill=color)
+
+    return image
+
+def setup_tray_icon(on_quit, on_login=None):
+    """Setup system tray icon with menu."""
+    menu_items = []
+
+    if on_login:
+        menu_items.append(MenuItem('Login', on_login))
+        menu_items.append(MenuItem('-', None))
+
+    menu_items.append(MenuItem('Quit', on_quit))
+
+    icon = Icon(
+        "Kazumee Agent",
+        image=create_tray_icon(is_connected=False),
+        menu=Menu(*menu_items)
+    )
+
+    return icon
 
 
 # ==============================================================================
@@ -241,19 +376,35 @@ class CloudSide:
 # ==============================================================================
 
 def main():
+    global STREAMER_TOKEN
+
     print("\n" + "=" * 60)
     print("  KAZUMEE LIVE-CLIPPING AGENT")
     print("=" * 60 + "\n")
 
-    # Validate config
+    # Try to load saved token first
     if not STREAMER_TOKEN:
-        status("err", "STREAMER_TOKEN not set!")
-        status("err", "Get your token from: https://kazumee.vercel.app/settings")
-        status("err", "Then run:")
-        status("err", '  export STREAMER_TOKEN="your_token_here"')
-        status("err", "  python kazumee-agent.py")
-        sys.exit(1)
+        STREAMER_TOKEN = load_token()
 
+    # If still no token, start auth flow
+    if not STREAMER_TOKEN:
+        status("info", "No token found. Starting login...")
+        auth_server = start_auth_server()
+        time.sleep(0.5)
+        open_login_in_browser()
+        status("info", "Waiting for authentication...")
+
+        # Wait up to 60 seconds for token
+        for i in range(60):
+            if STREAMER_TOKEN:
+                break
+            time.sleep(1)
+
+        if not STREAMER_TOKEN:
+            status("err", "Authentication timeout. Please run again.")
+            sys.exit(1)
+
+    status("ok", "Authenticated!")
     status("info", f"OBS: {OBS_HOST}:{OBS_PORT}")
     status("info", f"Cloud: {CLOUD_WS_URL}")
 
