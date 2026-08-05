@@ -11,10 +11,73 @@ import logging
 from typing import Optional
 import json
 import asyncio
+from backend.core.moment_detector import DetectedMoment
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/moments", tags=["MomentDetection"])
+
+
+# ==============================================================================
+# MOMENT-TO-AGENT BRIDGE
+# ==============================================================================
+
+async def on_moment_detected_send_clip_command(moment: DetectedMoment):
+    """
+    Callback: When moment is detected, send clip command to agent.
+    This bridges the cloud detector to the local agent on the streamer's PC.
+    """
+    try:
+        from backend.api.routes.agent import send_clip_command_to_agent
+        from backend.database.session import SessionLocal
+        from sqlalchemy import func
+        from backend.database.models.clip import Clip
+
+        # Get all connected agents' streamer IDs
+        # (We'll try to send to whoever has an active stream)
+        db = SessionLocal()
+        try:
+            # For now, send to all connected agents
+            # In production, you'd track which streamer is currently streaming
+            from backend.api.routes.agent import connected_agents
+
+            for streamer_id in list(connected_agents.keys()):
+                success = await send_clip_command_to_agent(streamer_id)
+                if success:
+                    logger.info(f"[CLIP COMMAND] Sent to streamer {streamer_id} | "
+                               f"Score: {moment.combined_score}/100 | Context: {moment.context}")
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"Failed to send clip command to agent: {e}")
+
+
+# ==============================================================================
+# REGISTER CALLBACK ON STARTUP
+# ==============================================================================
+
+_callback_registered = False
+
+def _register_agent_callback():
+    """Register the agent callback with the detector (called once on startup)"""
+    global _callback_registered
+    if _callback_registered:
+        return
+
+    try:
+        from backend.core.moment_detector import get_detector
+        detector = get_detector()
+        detector.on_moment_detected(on_moment_detected_send_clip_command)
+        _callback_registered = True
+        logger.info("[AGENT BRIDGE] Registered moment → clip-command callback")
+    except Exception as e:
+        logger.error(f"Failed to register agent callback: {e}")
+
+# Register on first API call
+def ensure_agent_callback_registered():
+    """Ensure callback is registered (call this at the start of each endpoint)"""
+    _register_agent_callback()
 
 
 class ChatEventRequest(BaseModel):
@@ -35,6 +98,7 @@ class AudioEventRequest(BaseModel):
 @router.post("/chat-event")
 async def on_chat_event(request: Request, payload: ChatEventRequest):
     """Register a chat message for moment detection."""
+    ensure_agent_callback_registered()
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
@@ -53,6 +117,7 @@ async def on_chat_event(request: Request, payload: ChatEventRequest):
 @router.post("/audio-event")
 async def on_audio_event(request: Request, payload: AudioEventRequest):
     """Register an audio peak for moment detection."""
+    ensure_agent_callback_registered()
     try:
         from backend.core.moment_detector import get_detector
         detector = get_detector()
