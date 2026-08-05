@@ -195,6 +195,12 @@ export default function SettingsPage() {
             >
               Notifications
             </button>
+            <button
+              className={`${styles.tab} ${activeTab === 'agent' ? styles.active : ''}`}
+              onClick={() => setActiveTab('agent')}
+            >
+              Agent Token
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -367,6 +373,97 @@ export default function SettingsPage() {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Agent Token Tab */}
+            {activeTab === 'agent' && (
+              <div className={styles.section}>
+                <h2>Autonomous Agent Token</h2>
+                <p style={{ marginBottom: '20px', color: '#888' }}>
+                  Use this token to set up the Kazumee autonomous clipping agent on your PC.
+                </p>
+
+                <div style={{
+                  background: '#1a1a2e',
+                  border: '1px solid #16213e',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '20px'
+                }}>
+                  <label style={{ display: 'block', marginBottom: '10px', fontSize: '12px', color: '#aaa' }}>
+                    STREAMER_TOKEN (Use with kazumee-agent.py)
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input
+                      type="password"
+                      value={localStorage.getItem('authToken') || 'token_loading...'}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        background: '#0f3460',
+                        border: 'none',
+                        color: '#00d4ff',
+                        padding: '12px',
+                        borderRadius: '4px',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const token = localStorage.getItem('authToken');
+                        navigator.clipboard.writeText(token);
+                        alert('Token copied to clipboard!');
+                      }}
+                      style={{
+                        background: '#0f9f6c',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#0f3460',
+                  border: '1px solid #16213e',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <h4 style={{ marginTop: 0 }}>How to use this token:</h4>
+                  <ol style={{ margin: '10px 0', paddingLeft: '20px' }}>
+                    <li>Download kazumee-agent.py from GitHub</li>
+                    <li>Install dependencies: <code>pip install obsws-python websocket-client requests</code></li>
+                    <li>Set the token: <code>export STREAMER_TOKEN="[your-token]"</code></li>
+                    <li>Run the agent: <code>python kazumee-agent.py</code></li>
+                  </ol>
+                </div>
+
+                <div style={{
+                  background: '#1a1a2e',
+                  border: '1px solid #ff6b6b',
+                  borderRadius: '8px',
+                  padding: '15px'
+                }}>
+                  <h4 style={{ marginTop: 0, color: '#ff6b6b' }}>⚠️ Security</h4>
+                  <p style={{ fontSize: '14px', margin: '5px 0' }}>
+                    • Never share this token publicly
+                  </p>
+                  <p style={{ fontSize: '14px', margin: '5px 0' }}>
+                    • Only use on trusted computers
+                  </p>
+                  <p style={{ fontSize: '14px', margin: '5px 0' }}>
+                    • Agent needs OBS on your local network
+                  </p>
+                </div>
               </div>
             )}
 
