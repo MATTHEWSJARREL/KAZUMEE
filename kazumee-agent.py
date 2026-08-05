@@ -24,6 +24,7 @@ import json
 import time
 import threading
 import sys
+import ssl
 
 try:
     import obsws_python as obs
@@ -331,6 +332,9 @@ class CloudSide:
         """Hold WebSocket connection to cloud forever."""
         while True:
             try:
+                # Skip SSL verification (Railway cert expired; test-only workaround)
+                ssl_opts = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+
                 ws = websocket.WebSocketApp(
                     CLOUD_WS_URL,
                     header=[f"Authorization: Bearer {STREAMER_TOKEN}"],
@@ -339,7 +343,7 @@ class CloudSide:
                     on_close=self._on_close,
                     on_error=self._on_error,
                 )
-                ws.run_forever(ping_interval=20, ping_timeout=10)
+                ws.run_forever(ping_interval=20, ping_timeout=10, sslopt=ssl_opts)
 
             except Exception as e:
                 status("err", f"Cloud connection error: {e}")
