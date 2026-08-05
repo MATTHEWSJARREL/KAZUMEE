@@ -46,7 +46,7 @@ async def get_stats(current_user = Depends(get_current_user)):
 
 @router.get("/events")
 async def get_recent_events(
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
     limit: int = 50,
     event_type: str = None
 ):
@@ -65,7 +65,7 @@ async def get_recent_events(
 
 @router.get("/errors")
 async def get_recent_errors(
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
     limit: int = 50
 ):
     """Get recent errors for debugging"""
@@ -82,7 +82,7 @@ async def get_recent_errors(
 
 
 @router.get("/clip-success-rate")
-async def get_clip_success_rate(current_user: User = Depends(get_current_user)):
+async def get_clip_success_rate(current_user = Depends(get_current_user)):
     """Get clip creation success rate"""
     streamer_id = await get_streamer_id_for_user(current_user.id)
 
@@ -102,7 +102,7 @@ async def get_clip_success_rate(current_user: User = Depends(get_current_user)):
 
 @router.get("/extraction-failures")
 async def get_extraction_failures(
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
     limit: int = 20
 ):
     """Get recent extraction failures for debugging"""
@@ -124,7 +124,7 @@ async def get_extraction_failures(
 
 
 @router.get("/log-files")
-async def get_log_files(current_user: User = Depends(get_current_user)):
+async def get_log_files(current_user = Depends(get_current_user)):
     """Get available log files"""
     streamer_id = await get_streamer_id_for_user(current_user.id)
 
