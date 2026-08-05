@@ -332,6 +332,8 @@ def create_clip(req: ClipCreateRequest, db: Session = Depends(get_db)):
 @router.post("/review")
 def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(get_db)):
 	"""Approve or reject a clip. Use DELETE endpoint to delete clips."""
+	from backend.core.logger import log_event, EventType
+
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
 		raise HTTPException(status_code=403, detail="Streamer role required")
@@ -360,6 +362,15 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 					duration_seconds=clip.duration_seconds,
 				)
 				clip.quality_score = score_clip(streamer.taste_profile, tags, duration_seconds=clip.duration_seconds)
+
+		log_event(
+			EventType.CLIP_APPROVED,
+			str(streamer_id),
+			f"Clip approved: {clip.title}",
+			clip_id=req.clip_id,
+			metadata={"notes": req.notes}
+		)
+
 	elif req.action == "reject":
 		clip.status = "rejected"
 		clip.notes = req.notes
@@ -373,6 +384,15 @@ def review_clip(req: ClipReviewRequest, request: Request, db: Session = Depends(
 					approved=False,
 					duration_seconds=clip.duration_seconds,
 				)
+
+		log_event(
+			EventType.CLIP_REJECTED,
+			str(streamer_id),
+			f"Clip rejected: {clip.title}",
+			clip_id=req.clip_id,
+			metadata={"notes": req.notes}
+		)
+
 	else:
 		raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'. For delete, use DELETE /api/clips/{clip_id}")
 
@@ -578,6 +598,8 @@ def get_stream_analytics(request: Request, db: Session = Depends(get_db)):
 @router.delete("/{clip_id:int}")
 def delete_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 	"""Delete a clip by marking it as deleted"""
+	from backend.core.logger import log_event, EventType
+
 	user = get_current_user(request, required=True)
 	if user.role != "streamer":
 		raise HTTPException(status_code=403, detail="Streamer role required")
@@ -592,6 +614,13 @@ def delete_clip(clip_id: int, request: Request, db: Session = Depends(get_db)):
 
 	clip.status = "deleted"
 	db.commit()
+
+	log_event(
+		EventType.CLIP_DELETED,
+		str(streamer_id),
+		f"Clip deleted: {clip.title}",
+		clip_id=clip_id
+	)
 
 	return {"status": "success", "message": f"Clip {clip_id} deleted successfully"}
 

@@ -59,18 +59,37 @@ class ClipGeneratorService:
 
     def _create_clip_record(self, moment: DetectedMoment):
         """Create a clip record in the database from a detected moment with video extraction"""
+        from backend.core.logger import log_event, EventType
+
         db = None
+        start_time = time.time()
+        clip_id = None
+
         try:
             from backend.database.session import SessionLocal
             from sqlalchemy import text
             from backend.core.video_extractor import get_extractor
 
             db = SessionLocal()
+            streamer_id = 1  # Default streamer for v1
+
+            # Log clip detection
+            log_event(
+                EventType.CLIP_DETECTED,
+                str(streamer_id),
+                f"Moment detected (score: {moment.combined_score:.1f})",
+                metadata={"moment_id": moment.moment_id, "context": moment.context[:50]}
+            )
 
             # Step 1: Extract video from OBS replay buffer or fallback source
             logger.info(f"Extracting video for moment {moment.moment_id}...")
-            extractor = get_extractor()
+            log_event(
+                EventType.EXTRACTION_STARTED,
+                str(streamer_id),
+                f"Video extraction started for moment {moment.moment_id}"
+            )
 
+            extractor = get_extractor()
             video_source = None
 
             # Try OBS replay buffer first
@@ -91,6 +110,12 @@ class ClipGeneratorService:
                     logger.info(f"Using fallback video: {video_source}")
                 else:
                     logger.error("No video source available (OBS not connected and no fallback video)")
+                    log_event(
+                        EventType.EXTRACTION_FAILED,
+                        str(streamer_id),
+                        "No video source available",
+                        error="OBS not connected and no fallback video"
+                    )
                     return
 
             # Step 2: Extract the video segment (45 seconds)
@@ -102,9 +127,23 @@ class ClipGeneratorService:
 
             if not file_path:
                 logger.error(f"Failed to extract video segment for moment {moment.moment_id}")
+                log_event(
+                    EventType.EXTRACTION_FAILED,
+                    str(streamer_id),
+                    f"Video extraction failed for moment {moment.moment_id}",
+                    error="FFmpeg extraction returned no file path"
+                )
                 return
 
+            extraction_time = int((time.time() - start_time) * 1000)
             logger.info(f"✅ Video extracted: {file_path}")
+            log_event(
+                EventType.EXTRACTION_SUCCEEDED,
+                str(streamer_id),
+                f"Video extracted successfully ({extraction_time}ms)",
+                duration_ms=extraction_time,
+                metadata={"file_path": file_path}
+            )
 
             # Step 3: Create clip record with actual file path
             title = "AUTO CLIP"
@@ -118,8 +157,9 @@ class ClipGeneratorService:
                 VALUES (:title, :desc, :file_path, :status,
                        :req_type, :req_name, :dur, :score,
                        :session_id, :streamer_id, NOW())
+                RETURNING id
             """)
-            db.execute(query, {
+            result = db.execute(query, {
                 "title": title,
                 "desc": moment.context[:100] if moment.context else "Auto moment",
                 "file_path": file_path,
@@ -129,15 +169,40 @@ class ClipGeneratorService:
                 "dur": 45,
                 "score": score,
                 "session_id": 1,
-                "streamer_id": 1
+                "streamer_id": streamer_id
             })
+
+            # Get the clip ID
+            try:
+                clip_id = result.scalar()
+            except:
+                pass
+
             db.commit()
+            total_time = int((time.time() - start_time) * 1000)
             logger.warning(f"✅ CLIP CREATED in DB (score={score:.2f}) → {file_path}")
+
+            log_event(
+                EventType.EXTRACTION_SUCCEEDED,
+                str(streamer_id),
+                f"Clip created successfully (ID: {clip_id})",
+                clip_id=clip_id,
+                duration_ms=total_time,
+                metadata={"title": title, "score": score}
+            )
 
         except Exception as e:
             if db:
                 db.rollback()
             logger.error(f"❌ Clip creation failed: {type(e).__name__}: {e}", exc_info=True)
+
+            log_event(
+                EventType.EXTRACTION_FAILED,
+                str(1),
+                f"Clip creation exception",
+                clip_id=clip_id,
+                error=f"{type(e).__name__}: {str(e)[:100]}"
+            )
             raise
         finally:
             if db:

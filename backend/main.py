@@ -35,6 +35,7 @@ from backend.api.routes import groq_proxy as groq_proxy_router
 from backend.api.routes import stream_detection as stream_detection_router
 # Removed: companion router (v1.1+ feature, not needed for v1)
 from backend.api.routes import clip_generator as clip_generator_router
+from backend.api.routes import monitoring as monitoring_router
 
 
 # Central dependencies
@@ -1042,6 +1043,7 @@ app.include_router(stream_detection_router.router, tags=["StreamDetection"])
 # Removed: companion_router (v1.1+ feature, not needed for v1)
 app.include_router(clip_generator_router.router, tags=["ClipGenerator"])
 app.include_router(obs_router.router, tags=["OBS"])
+app.include_router(monitoring_router.router, tags=["Monitoring"])
 
 
 
