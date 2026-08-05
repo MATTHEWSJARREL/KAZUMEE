@@ -864,10 +864,11 @@ async def ingest_clip(
 
 		# Log event
 		insert_stream_event(
+			db=db,
 			streamer_id=streamer_id,
+			platform="kazumee_agent",
 			event_type="EXTRACTION_STARTED",
-			clip_id=str(new_clip.id),
-			metadata={"source": source}
+			payload={"clip_id": str(new_clip.id), "source": source}
 		)
 
 		return {
