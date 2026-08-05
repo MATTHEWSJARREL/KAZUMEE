@@ -321,7 +321,7 @@ def verify_agent_token(token: str) -> Optional[int]:
             return None
 
         # Check if expired
-        if agent_token.expires_at < datetime.utcnow():
+        if agent_token.expires_at < datetime.now(timezone.utc):
             return None
 
         # Check if revoked

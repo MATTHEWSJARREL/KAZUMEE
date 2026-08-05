@@ -1,7 +1,7 @@
 import websocket
 import ssl
 
-TOKEN = "XsF1VxOzaGvt2MB6felCoA4I7kt-WflDsoZxxnCYsWE"   # v@gmail.com agent token
+TOKEN = "DhD5r_aT3OJt_WKYfnj44PUsoMnwIRw1GRGZip8Jx58"   # v@gmail.com agent token
 URL   = "wss://kazumee-production.up.railway.app/ws/agent"
 
 # Skip SSL cert verification (Railway cert expired; test-only workaround)
