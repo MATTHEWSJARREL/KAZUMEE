@@ -82,12 +82,56 @@ def save_token(token):
     except Exception as e:
         status("err", f"Failed to save token: {e}")
 
-def open_login_in_browser():
-    """Open browser to login page."""
+def validate_token(token):
+    """Validate token against backend. Returns True if valid."""
+    try:
+        r = requests.post(
+            f"{INGEST_URL.rsplit('/', 1)[0]}/agent/token-verify",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5,
+            verify=False
+        )
+        return r.status_code == 200
+    except:
+        return False
+
+def prompt_for_token():
+    """Show tkinter dialog to paste token. Returns token or None."""
+    import tkinter as tk
+    from tkinter import simpledialog, messagebox
+
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    root.attributes('-topmost', True)  # Bring to front
+
+    while True:
+        token = simpledialog.askstring(
+            "Kazumee Agent",
+            "Paste your Kazumee agent token:\n\n(Get it from https://kazumee.vercel.app/settings)",
+            show='*'
+        )
+
+        if token is None:  # User clicked Cancel
+            return None
+
+        token = token.strip()
+        if not token:
+            messagebox.showerror("Error", "Token cannot be empty")
+            continue
+
+        # Validate token
+        if validate_token(token):
+            messagebox.showinfo("Success", "Token validated! Agent is ready.")
+            root.destroy()
+            return token
+        else:
+            messagebox.showerror("Invalid Token", "Token is invalid or expired. Please try again.")
+            continue
+
+def open_dashboard():
+    """Open dashboard in browser."""
     import webbrowser
-    login_url = f"https://kazumee.vercel.app/auth?redirect=http://127.0.0.1:{AUTH_SERVER_PORT}/auth-callback"
-    webbrowser.open(login_url)
-    status("info", "Opening login page in browser...")
+    webbrowser.open("https://kazumee.vercel.app/settings")
 
 
 # ==============================================================================
@@ -142,6 +186,119 @@ class AuthCallbackHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass  # Suppress server logs
+
+
+# ==============================================================================
+# TRAY ICON & STATUS TRACKING
+# ==============================================================================
+
+agent_status = {
+    "obs_connected": False,
+    "cloud_connected": False,
+    "last_clip_time": None,
+    "tray_icon": None,
+}
+
+def create_tray_icon():
+    """Create system tray icon with status menu."""
+
+    def get_status_text():
+        """Generate status text for menu."""
+        obs_status = "OBS: connected" if agent_status["obs_connected"] else "OBS: not found"
+        cloud_status = "Cloud: connected" if agent_status["cloud_connected"] else "Cloud: offline"
+
+        last_clip = ""
+        if agent_status["last_clip_time"]:
+            elapsed = time.time() - agent_status["last_clip_time"]
+            if elapsed < 60:
+                last_clip = f"Last clip: {int(elapsed)}s ago"
+            elif elapsed < 3600:
+                last_clip = f"Last clip: {int(elapsed/60)}m ago"
+            else:
+                last_clip = f"Last clip: {int(elapsed/3600)}h ago"
+        else:
+            last_clip = "Last clip: none yet"
+
+        return f"{obs_status}\n{cloud_status}\n{last_clip}"
+
+    def create_icon_image():
+        """Create a simple circle icon."""
+        size = 64
+        image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+
+        # Determine color based on status
+        if agent_status["obs_connected"] and agent_status["cloud_connected"]:
+            color = (76, 175, 80, 255)  # Green
+        elif agent_status["obs_connected"] or agent_status["cloud_connected"]:
+            color = (255, 193, 7, 255)  # Amber
+        else:
+            color = (244, 67, 54, 255)  # Red
+
+        # Draw circle
+        margin = 8
+        draw.ellipse([margin, margin, size-margin, size-margin], fill=color)
+
+        return image
+
+    def on_quit():
+        """Quit the application."""
+        status("info", "Shutting down...")
+        os._exit(0)
+
+    def on_reenter_token():
+        """Re-enter token."""
+        token = prompt_for_token()
+        if token:
+            global STREAMER_TOKEN
+            STREAMER_TOKEN = token
+            save_token(token)
+            status("ok", "Token updated!")
+
+    # Build menu
+    menu = Menu(
+        MenuItem(get_status_text, enabled=False),  # Display status
+        MenuItem("Open Dashboard", lambda: open_dashboard()),
+        MenuItem("Re-enter token", lambda: on_reenter_token()),
+        MenuItem("Quit", lambda: on_quit()),
+    )
+
+    # Create icon
+    icon = Icon(
+        name="Kazumee",
+        icon=create_icon_image(),
+        menu=menu,
+        title="Kazumee Agent"
+    )
+
+    agent_status["tray_icon"] = icon
+    return icon
+
+def update_tray_icon():
+    """Update tray icon to reflect current status."""
+    if agent_status["tray_icon"]:
+        try:
+            agent_status["tray_icon"].icon = create_icon_image()
+        except:
+            pass  # Icon update not critical
+
+def create_icon_image():
+    """Create a simple circle icon (for updating)."""
+    size = 64
+    image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    if agent_status["obs_connected"] and agent_status["cloud_connected"]:
+        color = (76, 175, 80, 255)  # Green
+    elif agent_status["obs_connected"] or agent_status["cloud_connected"]:
+        color = (255, 193, 7, 255)  # Amber
+    else:
+        color = (244, 67, 54, 255)  # Red
+
+    margin = 8
+    draw.ellipse([margin, margin, size-margin, size-margin], fill=color)
+
+    return image
 
 def start_auth_server():
     """Start localhost auth server."""
@@ -229,6 +386,8 @@ class OBSSide:
                 )
                 v = self.req.get_version()
                 status("ok", f"OBS connected ({v.obs_version})")
+                agent_status["obs_connected"] = True
+                update_tray_icon()
 
                 self._ensure_replay_buffer()
                 self._wire_events()
@@ -236,6 +395,8 @@ class OBSSide:
                 return
 
             except Exception as e:
+                agent_status["obs_connected"] = False
+                update_tray_icon()
                 status("err", f"Can't reach OBS on {OBS_HOST}:{OBS_PORT}")
                 status("err", "Make sure: (1) OBS is open, (2) Tools → WebSocket Server Settings is ENABLED")
                 status("info", f"Retrying in {RECONNECT_SECS}s... ({type(e).__name__})")
@@ -265,6 +426,8 @@ class OBSSide:
             def on_replay_buffer_saved(data):
                 path = data.saved_replay_path
                 status("ok", f"Clip saved by OBS: {path}")
+                agent_status["last_clip_time"] = time.time()
+                update_tray_icon()
                 # Upload in background thread
                 threading.Thread(
                     target=upload_clip,
@@ -365,6 +528,8 @@ class CloudSide:
             time.sleep(RECONNECT_SECS)
 
     def _on_open(self, ws):
+        agent_status["cloud_connected"] = True
+        update_tray_icon()
         status("ok", "Connected to Kazumee cloud [OK]")
         status("ok", "Agent ready - waiting for hype moments...")
         ws.send(json.dumps({"type": "agent_online"}))
@@ -382,9 +547,13 @@ class CloudSide:
             ws.send(json.dumps({"type": "pong"}))
 
     def _on_close(self, ws, code, reason):
+        agent_status["cloud_connected"] = False
+        update_tray_icon()
         status("warn", "Cloud connection closed")
 
     def _on_error(self, ws, error):
+        agent_status["cloud_connected"] = False
+        update_tray_icon()
         status("err", f"Cloud error: {error}")
 
 
@@ -403,31 +572,29 @@ def main():
     if not STREAMER_TOKEN:
         STREAMER_TOKEN = load_token()
 
-    # If still no token, start auth flow
+    # If still no token, prompt user
     if not STREAMER_TOKEN:
-        status("info", "No token found. Starting login...")
-        auth_server = start_auth_server()
-        time.sleep(0.5)
-        open_login_in_browser()
-        status("info", "Waiting for authentication...")
-
-        # Wait up to 60 seconds for token
-        for i in range(60):
-            if STREAMER_TOKEN:
-                break
-            time.sleep(1)
+        status("info", "No token found. Please enter your Kazumee agent token.")
+        STREAMER_TOKEN = prompt_for_token()
 
         if not STREAMER_TOKEN:
-            status("err", "Authentication timeout. Please run again.")
+            status("err", "No token provided. Exiting.")
             sys.exit(1)
+
+        save_token(STREAMER_TOKEN)
 
     status("ok", "Authenticated!")
     status("info", f"OBS: {OBS_HOST}:{OBS_PORT}")
     status("info", f"Cloud: {CLOUD_WS_URL}")
 
+    # Create and start tray icon
+    tray = create_tray_icon()
+    threading.Thread(target=lambda: tray.run(), daemon=False).start()
+
     # Connect to OBS in background
     obs_side = OBSSide()
-    threading.Thread(target=obs_side.connect, daemon=True).start()
+    obs_thread = threading.Thread(target=obs_side.connect, daemon=True)
+    obs_thread.start()
 
     # Give OBS a moment to connect
     time.sleep(1)

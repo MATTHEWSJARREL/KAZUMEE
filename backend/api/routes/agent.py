@@ -127,6 +127,32 @@ async def send_clip_command_to_agent(streamer_id: int) -> bool:
 
 
 # ==============================================================================
+# TOKEN VERIFICATION
+# ==============================================================================
+
+@router.post("/agent/token-verify")
+async def verify_token(request: Request):
+    """
+    Quick token validation endpoint (used by agent on first-run).
+    No auth required — the token itself proves identity.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    token = None
+
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+
+    if not token:
+        raise HTTPException(status_code=401, detail="No token provided")
+
+    streamer_id = verify_agent_token(token)
+    if not streamer_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return {"valid": True, "streamer_id": streamer_id}
+
+
+# ==============================================================================
 # TOKEN ENDPOINTS
 # ==============================================================================
 
