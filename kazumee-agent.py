@@ -85,8 +85,9 @@ def save_token(token):
 def validate_token(token):
     """Validate token against backend. Returns True if valid."""
     try:
+        backend_url = INGEST_URL.rsplit('/api/', 1)[0]  # https://kazumee-production.up.railway.app
         r = requests.post(
-            f"{INGEST_URL.rsplit('/', 1)[0]}/agent/token-verify",
+            f"{backend_url}/api/agent/token-verify",
             headers={"Authorization": f"Bearer {token}"},
             timeout=5,
             verify=False
