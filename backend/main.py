@@ -1095,7 +1095,7 @@ app.include_router(stream_detection_router.router, tags=["StreamDetection"])
 app.include_router(clip_generator_router.router, tags=["ClipGenerator"])
 app.include_router(obs_router.router, tags=["OBS"])
 app.include_router(monitoring_router.router, tags=["Monitoring"])
-app.include_router(agent.router, tags=["Agent"])
+app.include_router(agent.router, prefix="/api", tags=["Agent"])
 
 
 
