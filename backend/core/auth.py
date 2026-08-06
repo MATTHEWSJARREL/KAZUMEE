@@ -97,7 +97,7 @@ def create_session(user_id: int) -> str:
     db = SessionLocal()
     try:
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(days=SESSION_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
         session = UserSession(user_id=user_id, token=_hash_session_token(token), expires_at=expires_at)
         db.add(session)
         db.commit()
@@ -274,7 +274,7 @@ def create_agent_token(streamer_id: int, ttl_days: int = 30) -> str:
     try:
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires_at = datetime.utcnow() + timedelta(days=ttl_days)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
 
         # Revoke previous token for this streamer (one active per streamer)
         previous = db.query(AgentToken).filter(
@@ -282,7 +282,7 @@ def create_agent_token(streamer_id: int, ttl_days: int = 30) -> str:
             AgentToken.revoked_at == None
         ).first()
         if previous:
-            previous.revoked_at = datetime.utcnow()
+            previous.revoked_at = datetime.now(timezone.utc)
 
         agent_token = AgentToken(
             streamer_id=streamer_id,
@@ -373,7 +373,7 @@ def revoke_agent_token(streamer_id: int) -> bool:
         if not token:
             return False
 
-        token.revoked_at = datetime.utcnow()
+        token.revoked_at = datetime.now(timezone.utc)
         db.commit()
         return True
     finally:
