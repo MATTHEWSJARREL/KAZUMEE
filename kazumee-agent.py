@@ -50,7 +50,7 @@ OBS_HOST = os.getenv("OBS_HOST", "localhost")
 OBS_PORT = int(os.getenv("OBS_PORT", "4455"))
 OBS_PASSWORD = os.getenv("OBS_PASSWORD", "")
 
-CLOUD_WS_URL = os.getenv("CLOUD_WS_URL", "wss://kazumee-production.up.railway.app/ws/agent")
+CLOUD_WS_URL = os.getenv("CLOUD_WS_URL", "wss://kazumee-production.up.railway.app/api/ws/agent")
 INGEST_URL = os.getenv("INGEST_URL", "https://kazumee-production.up.railway.app/api/clips/ingest")
 
 STREAMER_TOKEN = os.getenv("STREAMER_TOKEN", "")  # Get from Kazumee dashboard
