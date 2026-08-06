@@ -85,10 +85,12 @@ export default function SettingsPage() {
     return () => clearInterval(statusInterval);
   }, [navigate]);
 
+  const BACKEND_URL = 'https://kazumee-production.up.railway.app';
+
   const fetchAgentMetadata = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/agent/token', {
+      const response = await fetch(`${BACKEND_URL}/api/agent/token`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -104,7 +106,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('authToken');
       // Note: This assumes we have the streamer_id. In real app, derive from auth context
-      const response = await fetch('/api/agent/status/1', {
+      const response = await fetch(`${BACKEND_URL}/api/agent/status/1`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -120,7 +122,7 @@ export default function SettingsPage() {
     setGeneratingToken(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/agent/token', {
+      const response = await fetch(`${BACKEND_URL}/api/agent/token`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
