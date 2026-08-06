@@ -13,6 +13,14 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [saving, setSaving] = useState(false);
 
+  // Agent state
+  const [agentToken, setAgentToken] = useState('');
+  const [agentStatus, setAgentStatus] = useState('offline');
+  const [agentMetadata, setAgentMetadata] = useState(null);
+  const [loadingAgent, setLoadingAgent] = useState(false);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
+
   // Settings state
   const [settings, setSettings] = useState({
     // General
@@ -68,7 +76,78 @@ export default function SettingsPage() {
       displayName: name,
       email: email
     }));
+
+    // Fetch agent token metadata and status
+    fetchAgentMetadata();
+    fetchAgentStatus();
+    // Poll status every 5 seconds
+    const statusInterval = setInterval(fetchAgentStatus, 5000);
+    return () => clearInterval(statusInterval);
   }, [navigate]);
+
+  const fetchAgentMetadata = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/agent/token', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAgentMetadata(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch agent metadata:', error);
+    }
+  };
+
+  const fetchAgentStatus = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      // Note: This assumes we have the streamer_id. In real app, derive from auth context
+      const response = await fetch('/api/agent/status/1', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAgentStatus(data.online ? 'connected' : 'offline');
+      }
+    } catch (error) {
+      console.error('Failed to fetch agent status:', error);
+    }
+  };
+
+  const generateNewAgentToken = async () => {
+    setGeneratingToken(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/agent/token', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAgentToken(data.token);
+        setTokenCopied(false);
+        await fetchAgentMetadata();
+        alert('New agent token generated! Copy it now—it won\'t be shown again.');
+      } else {
+        alert('Failed to generate token');
+      }
+    } catch (error) {
+      console.error('Failed to generate token:', error);
+      alert('Error generating token');
+    } finally {
+      setGeneratingToken(false);
+    }
+  };
+
+  const copyAgentToken = () => {
+    if (agentToken) {
+      navigator.clipboard.writeText(agentToken);
+      setTokenCopied(true);
+      setTimeout(() => setTokenCopied(false), 2000);
+    }
+  };
 
   const handleSettingChange = (key, value) => {
     setSettings(prev => ({
@@ -376,14 +455,78 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Agent Token Tab */}
+            {/* Agent Tab */}
             {activeTab === 'agent' && (
               <div className={styles.section}>
-                <h2>Autonomous Agent Token</h2>
+                <h2>Kazumee Autonomous Clipping Agent</h2>
                 <p style={{ marginBottom: '20px', color: '#888' }}>
-                  Use this token to set up the Kazumee autonomous clipping agent on your PC.
+                  Download and run the agent on your PC to auto-clip moments from OBS.
                 </p>
 
+                {/* Agent Status */}
+                <div style={{
+                  background: agentStatus === 'connected' ? '#0f3460' : '#3a1a1a',
+                  border: `1px solid ${agentStatus === 'connected' ? '#16213e' : '#5a2a2a'}`,
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px'
+                }}>
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: agentStatus === 'connected' ? '#4CAF50' : '#ff6b6b',
+                    animation: agentStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+                  }} />
+                  <div>
+                    <h4 style={{ margin: '0 0 5px 0' }}>
+                      Agent: <span style={{ color: agentStatus === 'connected' ? '#4CAF50' : '#ff6b6b' }}>
+                        {agentStatus === 'connected' ? 'Connected' : 'Offline'}
+                      </span>
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>
+                      {agentStatus === 'connected'
+                        ? 'Your agent is running and ready to capture clips'
+                        : 'Run KazumeeAgent.exe to start capturing'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Download Button */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #0f9f6c 0%, #0d7a54 100%)',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '10px' }}>Get Started</h4>
+                  <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
+                    Download the agent for Windows (single-click install)
+                  </p>
+                  <a
+                    href="https://github.com/MATTHEWSJARREL/KAZUMEE/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      background: '#ffffff',
+                      color: '#0f9f6c',
+                      padding: '12px 30px',
+                      borderRadius: '4px',
+                      textDecoration: 'none',
+                      fontWeight: 'bold',
+                      fontSize: '16px'
+                    }}
+                  >
+                    Download KazumeeAgent.exe
+                  </a>
+                </div>
+
+                {/* Agent Token Section */}
                 <div style={{
                   background: '#1a1a2e',
                   border: '1px solid #16213e',
@@ -391,46 +534,76 @@ export default function SettingsPage() {
                   padding: '20px',
                   marginBottom: '20px'
                 }}>
-                  <label style={{ display: 'block', marginBottom: '10px', fontSize: '12px', color: '#aaa' }}>
-                    STREAMER_TOKEN (Use with kazumee-agent.py)
-                  </label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <input
-                      type="password"
-                      value={localStorage.getItem('authToken') || 'token_loading...'}
-                      readOnly
-                      style={{
-                        flex: 1,
-                        background: '#0f3460',
-                        border: 'none',
-                        color: '#00d4ff',
-                        padding: '12px',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace',
-                        fontSize: '12px'
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        const token = localStorage.getItem('authToken');
-                        navigator.clipboard.writeText(token);
-                        alert('Token copied to clipboard!');
-                      }}
-                      style={{
-                        background: '#0f9f6c',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      Copy
-                    </button>
-                  </div>
+                  <h4 style={{ marginTop: 0, marginBottom: '15px' }}>Agent Token</h4>
+
+                  {!agentToken && agentMetadata && (
+                    <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '15px' }}>
+                      {agentMetadata.exists
+                        ? `Token expires: ${new Date(agentMetadata.expires_at).toLocaleDateString()}`
+                        : 'No active token. Generate one below.'}
+                    </p>
+                  )}
+
+                  {agentToken ? (
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input
+                        type="text"
+                        value={agentToken}
+                        readOnly
+                        style={{
+                          flex: 1,
+                          background: '#0f3460',
+                          border: 'none',
+                          color: '#00d4ff',
+                          padding: '12px',
+                          borderRadius: '4px',
+                          fontFamily: 'monospace',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <button
+                        onClick={copyAgentToken}
+                        style={{
+                          background: tokenCopied ? '#4CAF50' : '#0f9f6c',
+                          color: 'white',
+                          border: 'none',
+                          padding: '10px 20px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {tokenCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <button
+                    onClick={generateNewAgentToken}
+                    disabled={generatingToken}
+                    style={{
+                      width: '100%',
+                      background: '#0f3460',
+                      color: '#00d4ff',
+                      border: '1px solid #16213e',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {generatingToken ? 'Generating...' : agentToken ? 'Show New Token' : 'Generate Agent Token'}
+                  </button>
+
+                  {agentToken && (
+                    <p style={{ fontSize: '12px', color: '#ff9800', marginTop: '10px', margin: '10px 0 0 0' }}>
+                      ⚠️ Copy this token now — it won't be shown again!
+                    </p>
+                  )}
                 </div>
 
+                {/* Setup Instructions */}
                 <div style={{
                   background: '#0f3460',
                   border: '1px solid #16213e',
@@ -438,30 +611,31 @@ export default function SettingsPage() {
                   padding: '15px',
                   marginBottom: '20px'
                 }}>
-                  <h4 style={{ marginTop: 0 }}>How to use this token:</h4>
-                  <ol style={{ margin: '10px 0', paddingLeft: '20px' }}>
-                    <li>Download kazumee-agent.py from GitHub</li>
-                    <li>Install dependencies: <code>pip install obsws-python websocket-client requests</code></li>
-                    <li>Set the token: <code>export STREAMER_TOKEN="[your-token]"</code></li>
-                    <li>Run the agent: <code>python kazumee-agent.py</code></li>
+                  <h4 style={{ marginTop: 0 }}>Setup (60 seconds)</h4>
+                  <ol style={{ margin: '10px 0', paddingLeft: '20px', fontSize: '14px' }}>
+                    <li>Download KazumeeAgent.exe above</li>
+                    <li>Run it (double-click)</li>
+                    <li>Paste your token from the step above</li>
+                    <li>Agent sits in your system tray, ready to clip</li>
                   </ol>
                 </div>
 
+                {/* Security */}
                 <div style={{
                   background: '#1a1a2e',
                   border: '1px solid #ff6b6b',
                   borderRadius: '8px',
                   padding: '15px'
                 }}>
-                  <h4 style={{ marginTop: 0, color: '#ff6b6b' }}>⚠️ Security</h4>
+                  <h4 style={{ marginTop: 0, color: '#ff6b6b' }}>Security</h4>
                   <p style={{ fontSize: '14px', margin: '5px 0' }}>
-                    • Never share this token publicly
+                    • Never share your agent token
                   </p>
                   <p style={{ fontSize: '14px', margin: '5px 0' }}>
-                    • Only use on trusted computers
+                    • Only run on your own PC
                   </p>
                   <p style={{ fontSize: '14px', margin: '5px 0' }}>
-                    • Agent needs OBS on your local network
+                    • Requires OBS with replay buffer enabled
                   </p>
                 </div>
               </div>
