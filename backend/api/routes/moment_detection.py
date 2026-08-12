@@ -29,20 +29,23 @@ async def on_moment_detected_send_clip_command(moment: DetectedMoment):
     CRITICAL: targeted send, not broadcast — prevents cross-account clip commands.
     """
     try:
-        from backend.api.routes.agent import send_clip_command_to_agent
+        from backend.api.routes.agent import send_clip_command_to_agent, connected_agents
 
         streamer_id = moment.streamer_id
+        all_connected = list(connected_agents.keys())
+
+        logger.info(f"[MOMENT→AGENT] Moment detected for streamer {streamer_id} | "
+                   f"Score: {moment.combined_score}/100 | Connected agents: {all_connected}")
+
         success = await send_clip_command_to_agent(streamer_id)
 
         if success:
-            logger.info(f"[CLIP COMMAND] Sent to streamer {streamer_id} | "
-                       f"Score: {moment.combined_score}/100 | Context: {moment.context}")
+            logger.info(f"[MOMENT→AGENT] ✅ Clip command sent to streamer {streamer_id}")
         else:
-            logger.warning(f"[CLIP COMMAND] Agent offline for streamer {streamer_id} | "
-                          f"Score: {moment.combined_score}/100 (clip not captured)")
+            logger.warning(f"[MOMENT→AGENT] ❌ Agent offline for streamer {streamer_id}")
 
     except Exception as e:
-        logger.error(f"Failed to send clip command to agent: {e}")
+        logger.error(f"[MOMENT→AGENT] ❌ Failed to send clip command to agent: {e}")
 
 
 # ==============================================================================

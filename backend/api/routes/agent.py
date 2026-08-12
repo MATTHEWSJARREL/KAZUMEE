@@ -70,7 +70,8 @@ async def websocket_agent_endpoint(websocket: WebSocket):
         "ws": websocket,
         "last_seen": datetime.utcnow()
     }
-    logger.info(f"Agent online for streamer {streamer_id}")
+    logger.info(f"[AGENT REGISTRY] ✅ Agent online for streamer {streamer_id} | "
+                f"Total connected: {len(connected_agents)} | Registry: {list(connected_agents.keys())}")
 
     try:
         while True:
@@ -108,18 +109,24 @@ async def send_clip_command_to_agent(streamer_id: int) -> bool:
     Send clip command to connected agent for this streamer.
     Returns True if agent was online and command sent.
     """
+    # Log the attempt with full debug info
+    all_connected_ids = list(connected_agents.keys())
+    logger.info(f"[CLIP COMMAND] Moment detected for streamer {streamer_id} | "
+                f"Connected agents: {all_connected_ids}")
+
     if streamer_id not in connected_agents:
-        logger.warning(f"No agent connected for streamer {streamer_id}")
+        logger.warning(f"[CLIP COMMAND] ❌ No agent connected for streamer {streamer_id} | "
+                      f"Available: {all_connected_ids}")
         return False
 
     try:
         agent_info = connected_agents[streamer_id]
         ws = agent_info["ws"]
         await ws.send_json(CLIP_COMMAND)
-        logger.info(f"Sent clip command to streamer {streamer_id}")
+        logger.info(f"[CLIP COMMAND] ✅ Sent clip command to streamer {streamer_id}")
         return True
     except Exception as e:
-        logger.error(f"Failed to send clip command to streamer {streamer_id}: {e}")
+        logger.error(f"[CLIP COMMAND] ❌ Failed to send clip command to streamer {streamer_id}: {e}")
         # Remove the dead connection
         if streamer_id in connected_agents:
             del connected_agents[streamer_id]

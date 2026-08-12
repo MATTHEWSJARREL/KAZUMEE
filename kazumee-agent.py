@@ -2,9 +2,10 @@
 
 # CRITICAL: Redirect stdout/stderr FIRST, before any imports or docstring
 # Under --windowed mode, sys.stdout/sys.stderr are None, causing silent crashes
+# NOTE: Open in "w" mode to reset log on each launch (don't append forever)
 import sys, os
 if sys.stdout is None or sys.stderr is None:
-    _log = open(os.path.join(os.path.expanduser("~"), "kazumee_agent.log"), "a")
+    _log = open(os.path.join(os.path.expanduser("~"), "kazumee_agent.log"), "w")
     if sys.stdout is None: sys.stdout = _log
     if sys.stderr is None: sys.stderr = _log
 
