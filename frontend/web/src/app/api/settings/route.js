@@ -1,8 +1,9 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
-    const streamerId = 1;
+    const streamerId = await getStreamerIdFromRequest(request);
 
     const profile = await sql`
       SELECT * FROM streamer_profiles
@@ -71,7 +72,7 @@ export async function GET(request) {
 
 export async function PUT(request) {
   try {
-    const streamerId = 1;
+    const streamerId = await getStreamerIdFromRequest(request);
     const body = await request.json();
 
     // Update streamer profile

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { setAuthToken } from '@/lib/apiClient';
 import styles from './AuthForm.module.css';
 
 export default function LoginForm({ onSuccess, onToggle }) {
@@ -42,8 +43,8 @@ export default function LoginForm({ onSuccess, onToggle }) {
       const token = data.token;
       const user = data.user;
 
-      // Store real auth token
-      localStorage.setItem('authToken', token);
+      // Store real auth token using apiClient helper (sets correct storage key + clears caches)
+      setAuthToken(token, true);
       localStorage.setItem('userRole', user.role);
       localStorage.setItem('streamerEmail', user.email);
       localStorage.setItem('streamerName', user.email.split('@')[0]);

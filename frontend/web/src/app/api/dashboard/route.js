@@ -1,8 +1,9 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
-    const streamerId = 1; // Default streamer for now
+    const streamerId = await getStreamerIdFromRequest(request);
 
     // Get current stream
     const currentStreamResult = await sql`

@@ -1,9 +1,9 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
-    const viewerId = 3; // Example viewer ID
-    const streamerId = 1;
+    const streamerId = await getStreamerIdFromRequest(request);
 
     // Get viewer info
     const viewer = await sql`

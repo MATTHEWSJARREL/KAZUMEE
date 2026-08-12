@@ -1,10 +1,11 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
+    const streamerId = await getStreamerIdFromRequest(request);
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get("filter") || "all";
-    const streamerId = 1; // Default streamer for now
 
     let query = "SELECT * FROM clips WHERE streamer_id = $1";
     const params = [streamerId];
@@ -28,10 +29,10 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const streamerId = await getStreamerIdFromRequest(request);
     const body = await request.json();
     const {
       streamId,
-      streamerId,
       title,
       description,
       timestampStart,

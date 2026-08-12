@@ -1,10 +1,11 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const severity = searchParams.get("severity") || "all";
-    const streamerId = 1; // Default streamer for now
+    const streamerId = await getStreamerIdFromRequest(request);
 
     let query = "SELECT * FROM moderation_events WHERE streamer_id = $1";
     const params = [streamerId];

@@ -1,11 +1,12 @@
 import sql from "@/app/api/utils/sql";
+import { getStreamerIdFromRequest } from "@/app/api/utils/getStreamerIdFromRequest";
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
     const tier = searchParams.get("tier") || "all";
-    const streamerId = 1;
+    const streamerId = await getStreamerIdFromRequest(request);
 
     // Get current stream
     const currentStream = await sql`
