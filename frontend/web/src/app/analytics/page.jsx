@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, BarChart3, TrendingDown, Clock } from 'lucide-react';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './analytics.module.css';
 
 export default function AnalyticsPage() {
@@ -14,7 +15,7 @@ export default function AnalyticsPage() {
   const [selectedRange, setSelectedRange] = useState('7d');
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     const role = localStorage.getItem('userRole');
 
     if (!token || role !== 'streamer') {

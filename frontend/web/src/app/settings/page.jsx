@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings as SettingsIcon, LogOut, Bell, Search, Save, Eye, Lock, Volume2, Zap } from 'lucide-react';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './settings.module.css';
 
 export default function SettingsPage() {
@@ -43,7 +44,7 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     const role = localStorage.getItem('userRole');
 
     if (!token || role !== 'streamer') {
@@ -85,14 +86,9 @@ export default function SettingsPage() {
     return () => clearInterval(statusInterval);
   }, [navigate]);
 
-  const BACKEND_URL = 'https://kazumee-production.up.railway.app';
-
   const fetchAgentMetadata = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${BACKEND_URL}/api/agent/token`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiFetch('/api/agent/token');
       if (response.ok) {
         const data = await response.json();
         setAgentMetadata(data);
@@ -104,11 +100,7 @@ export default function SettingsPage() {
 
   const fetchAgentStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      // Note: This assumes we have the streamer_id. In real app, derive from auth context
-      const response = await fetch(`${BACKEND_URL}/api/agent/status/1`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiFetch('/api/agent/status');
       if (response.ok) {
         const data = await response.json();
         setAgentStatus(data.online ? 'connected' : 'offline');
@@ -121,10 +113,8 @@ export default function SettingsPage() {
   const generateNewAgentToken = async () => {
     setGeneratingToken(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${BACKEND_URL}/api/agent/token`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await apiFetch('/api/agent/token', {
+        method: 'POST'
       });
       if (response.ok) {
         const data = await response.json();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertCircle, TrendingUp, Clock, XCircle, CheckCircle } from 'lucide-react';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 
 export default function MonitoringPage() {
   const [stats, setStats] = useState(null);
@@ -18,16 +19,10 @@ export default function MonitoringPage() {
 
   const fetchMonitoringData = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      };
-
       const [statsRes, eventsRes, errorsRes] = await Promise.all([
-        fetch('/api/monitoring/stats', { headers }),
-        fetch('/api/monitoring/events?limit=20', { headers }),
-        fetch('/api/monitoring/errors?limit=10', { headers }),
+        apiFetch('/api/monitoring/stats'),
+        apiFetch('/api/monitoring/events?limit=20'),
+        apiFetch('/api/monitoring/errors?limit=10'),
       ]);
 
       if (!statsRes.ok || !eventsRes.ok || !errorsRes.ok) {

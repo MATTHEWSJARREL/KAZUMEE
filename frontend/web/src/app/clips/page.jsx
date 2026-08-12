@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { getApiUrl } from '@/utils/api';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './clips.module.css';
 import VerticalPreviewModal from './VerticalPreviewModal';
 
@@ -30,7 +30,7 @@ export default function ClipsPage() {
   const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     const role = localStorage.getItem('userRole');
 
     if (!token || role !== 'streamer') {
@@ -56,11 +56,10 @@ export default function ClipsPage() {
 
     setBatchExporting(true);
     try {
-      const res = await fetch('${getApiUrl()}/api/clips/batch-export', {
+      const res = await apiFetch('/api/clips/batch-export', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           clip_ids: Array.from(selectedClips),
@@ -94,9 +93,8 @@ export default function ClipsPage() {
     setBurningCaption(clip.id);
     setBurningStatus('Burning captions...');
     try {
-      const res = await fetch(`${getApiUrl()}/api/clips/${clip.id}/burn-captions`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      const res = await apiFetch(`/api/clips/${clip.id}/burn-captions`, {
+        method: 'POST'
       });
 
       if (!res.ok) {
@@ -124,7 +122,7 @@ export default function ClipsPage() {
       // Fetch all clips from /api/clips/
       try {
         console.log('Fetching all clips...');
-        const allRes = await fetch('${getApiUrl()}/api/clips/?limit=50');
+        const allRes = await apiFetch('/api/clips/?limit=50');
         console.log('All clips response:', allRes.status);
         if (allRes.ok) {
           const allData = await allRes.json();
@@ -182,11 +180,7 @@ export default function ClipsPage() {
       return;
     }
     try {
-      const response = await fetch(`${getApiUrl()}/api/clips/download/${clip.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
-      });
+      const response = await apiFetch(`/api/clips/download/${clip.id}`);
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }

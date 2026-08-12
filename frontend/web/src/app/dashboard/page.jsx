@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, MoreVertical } from 'lucide-react';
 import { useMomentWebSocket } from '@/hooks/useMomentWebSocket';
-import { getApiUrl } from '@/utils/api';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
@@ -24,11 +24,11 @@ export default function Dashboard() {
     setTestingMoment(true);
     try {
       // Reset detector
-      await fetch(`${getApiUrl()}/api/moments/reset`, { method: 'POST' });
+      await apiFetch('/api/moments/reset', { method: 'POST' });
 
       // Send 100 chat messages
       for (let i = 1; i <= 100; i++) {
-        fetch(`${getApiUrl()}/api/moments/chat-event`, {
+        apiFetch('/api/moments/chat-event', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -41,7 +41,7 @@ export default function Dashboard() {
 
       // Wait a bit then send audio peak
       await new Promise(resolve => setTimeout(resolve, 2000));
-      await fetch(`${getApiUrl()}/api/moments/audio-event`, {
+      await apiFetch('/api/moments/audio-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'test', peak_value: 0.95 })
@@ -81,7 +81,7 @@ export default function Dashboard() {
   const fetchClipsAndStatus = useCallback(async () => {
     try {
       // Fetch status
-      const statusRes = await fetch(`${getApiUrl()}/api/moments/status`);
+      const statusRes = await apiFetch('/api/moments/status');
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setMomentStatus(statusData.detector);
@@ -91,7 +91,7 @@ export default function Dashboard() {
 
       // Fetch all clips from /api/clips/ endpoint with error handling
       try {
-        const allClipsRes = await fetch(`${getApiUrl()}/api/clips/?limit=50`);
+        const allClipsRes = await apiFetch('/api/clips/?limit=50');
 
         // Handle 403 Forbidden - viewer trying to access streamer features
         if (allClipsRes.status === 403) {
@@ -134,7 +134,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     const role = localStorage.getItem('userRole');
 
     console.log('Dashboard auth check:', { token, role });
