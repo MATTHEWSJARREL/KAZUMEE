@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+
+# CRITICAL: Redirect stdout/stderr FIRST, before any imports or docstring
+# Under --windowed mode, sys.stdout/sys.stderr are None, causing silent crashes
+import sys, os
+if sys.stdout is None or sys.stderr is None:
+    _log = open(os.path.join(os.path.expanduser("~"), "kazumee_agent.log"), "a")
+    if sys.stdout is None: sys.stdout = _log
+    if sys.stderr is None: sys.stderr = _log
+
 """
 Kazumee Live-Clipping Agent
 ============================
@@ -19,11 +28,9 @@ OBS Setup (one-time):
 - Settings → Output → Replay Buffer → Buffer enabled + duration (60s recommended)
 """
 
-import os
 import json
 import time
 import threading
-import sys
 import ssl
 import urllib3
 
@@ -53,34 +60,63 @@ OBS_PASSWORD = os.getenv("OBS_PASSWORD", "")
 CLOUD_WS_URL = os.getenv("CLOUD_WS_URL", "wss://kazumee-production.up.railway.app/api/ws/agent")
 INGEST_URL = os.getenv("INGEST_URL", "https://kazumee-production.up.railway.app/api/clips/ingest")
 
-STREAMER_TOKEN = os.getenv("STREAMER_TOKEN", "")  # Get from Kazumee dashboard
+STREAMER_TOKEN = None
+OBS_PASSWORD = None
 
 RECONNECT_SECS = 5
-TOKEN_STORAGE_FILE = os.path.expanduser("~/.kazumee_agent_token")
+CONFIG_FILE = os.path.expanduser("~/.kazumee_agent_config.json")
+OLD_TOKEN_FILE = os.path.expanduser("~/.kazumee_agent_token")
 AUTH_SERVER_PORT = 9284
 
 
 # ==============================================================================
-# TOKEN MANAGEMENT
+# CONFIG MANAGEMENT
 # ==============================================================================
 
-def load_token():
-    """Load saved token from disk."""
-    if os.path.exists(TOKEN_STORAGE_FILE):
+def load_config():
+    """Load config from disk. Returns {streamer_token, obs_password} or None."""
+    # Try new config file first
+    if os.path.exists(CONFIG_FILE):
         try:
-            with open(TOKEN_STORAGE_FILE, 'r') as f:
-                return f.read().strip()
-        except:
-            pass
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                status("ok", f"Loaded config from {CONFIG_FILE}")
+                return config
+        except Exception as e:
+            status("err", f"Failed to read config: {e}")
+            return None
+
+    # Fallback: migrate old token file
+    if os.path.exists(OLD_TOKEN_FILE):
+        try:
+            with open(OLD_TOKEN_FILE, 'r') as f:
+                token = f.read().strip()
+                config = {"streamer_token": token, "obs_password": None}
+                status("info", "Migrating old token file to new config format")
+                save_config(config)
+                return config
+        except Exception as e:
+            status("err", f"Failed to migrate old config: {e}")
+            return None
+
+    status("info", f"No config found at {CONFIG_FILE}")
     return None
 
-def save_token(token):
-    """Save token to disk."""
+def save_config(config):
+    """Save config to disk with restricted permissions."""
     try:
-        with open(TOKEN_STORAGE_FILE, 'w') as f:
-            f.write(token)
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f)
+        # Set file permissions to 600 (user read/write only)
+        os.chmod(CONFIG_FILE, 0o600)
+        status("ok", f"Config saved to {CONFIG_FILE}")
+        # Verify it was written
+        if os.path.exists(CONFIG_FILE) and os.path.getsize(CONFIG_FILE) > 0:
+            status("ok", "Config file verified")
+        else:
+            status("err", "Config file not written or empty!")
     except Exception as e:
-        status("err", f"Failed to save token: {e}")
+        status("err", f"Failed to save config: {e}")
 
 def validate_token(token):
     """Validate token against backend. Returns True if valid."""
@@ -96,19 +132,20 @@ def validate_token(token):
     except:
         return False
 
-def prompt_for_token():
-    """Show tkinter dialog to paste token. Returns token or None."""
+def run_setup_dialog():
+    """Show tkinter dialog to collect token and OBS password. Returns config dict or None."""
     import tkinter as tk
     from tkinter import simpledialog, messagebox
 
     root = tk.Tk()
-    root.withdraw()  # Hide the root window
-    root.attributes('-topmost', True)  # Bring to front
+    root.withdraw()
+    root.attributes('-topmost', True)
 
+    # Get Kazumee token
     while True:
         token = simpledialog.askstring(
-            "Kazumee Agent",
-            "Paste your Kazumee agent token:\n\n(Get it from https://kazumee.vercel.app/settings)",
+            "Kazumee Agent - Setup",
+            "1. Paste your Kazumee agent token:\n\n(Get it from https://kazumee.vercel.app/settings)",
             show='*'
         )
 
@@ -122,12 +159,26 @@ def prompt_for_token():
 
         # Validate token
         if validate_token(token):
-            messagebox.showinfo("Success", "Token validated! Agent is ready.")
-            root.destroy()
-            return token
+            break
         else:
             messagebox.showerror("Invalid Token", "Token is invalid or expired. Please try again.")
             continue
+
+    # Get OBS WebSocket password
+    obs_password = simpledialog.askstring(
+        "Kazumee Agent - Setup",
+        "2. Enter your OBS WebSocket password:\n\n(From OBS: Tools → WebSocket Server Settings → Show Connect Info)",
+        show='*'
+    )
+
+    if obs_password is None:
+        obs_password = ""  # Allow empty password if OBS has no auth
+
+    config = {"streamer_token": token, "obs_password": obs_password}
+    save_config(config)
+    messagebox.showinfo("Setup Complete", f"Kazumee Agent is ready!\nConfig saved to:\n{CONFIG_FILE}\n\nThe agent will now start.")
+    root.destroy()
+    return config
 
 def open_dashboard():
     """Open dashboard in browser."""
@@ -158,7 +209,10 @@ class AuthCallbackHandler(BaseHTTPRequestHandler):
             if token:
                 global STREAMER_TOKEN
                 STREAMER_TOKEN = token
-                save_token(token)
+                # Load existing config or create new
+                config = load_config() or {}
+                config["streamer_token"] = token
+                save_config(config)
                 status("ok", f"Token saved successfully!")
 
                 # Return success page
@@ -200,67 +254,48 @@ agent_status = {
     "tray_icon": None,
 }
 
+def create_icon_image():
+    """Create a circle icon reflecting current connection status."""
+    size = 64
+    image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+
+    # Determine color based on status
+    if agent_status["obs_connected"] and agent_status["cloud_connected"]:
+        color = (76, 175, 80, 255)  # Green
+    elif agent_status["obs_connected"] or agent_status["cloud_connected"]:
+        color = (255, 193, 7, 255)  # Amber
+    else:
+        color = (244, 67, 54, 255)  # Red
+
+    # Draw circle
+    margin = 8
+    draw.ellipse([margin, margin, size-margin, size-margin], fill=color)
+
+    return image
+
 def create_tray_icon():
     """Create system tray icon with status menu."""
-
-    def get_status_text():
-        """Generate status text for menu."""
-        obs_status = "OBS: connected" if agent_status["obs_connected"] else "OBS: not found"
-        cloud_status = "Cloud: connected" if agent_status["cloud_connected"] else "Cloud: offline"
-
-        last_clip = ""
-        if agent_status["last_clip_time"]:
-            elapsed = time.time() - agent_status["last_clip_time"]
-            if elapsed < 60:
-                last_clip = f"Last clip: {int(elapsed)}s ago"
-            elif elapsed < 3600:
-                last_clip = f"Last clip: {int(elapsed/60)}m ago"
-            else:
-                last_clip = f"Last clip: {int(elapsed/3600)}h ago"
-        else:
-            last_clip = "Last clip: none yet"
-
-        return f"{obs_status}\n{cloud_status}\n{last_clip}"
-
-    def create_icon_image():
-        """Create a simple circle icon."""
-        size = 64
-        image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
-
-        # Determine color based on status
-        if agent_status["obs_connected"] and agent_status["cloud_connected"]:
-            color = (76, 175, 80, 255)  # Green
-        elif agent_status["obs_connected"] or agent_status["cloud_connected"]:
-            color = (255, 193, 7, 255)  # Amber
-        else:
-            color = (244, 67, 54, 255)  # Red
-
-        # Draw circle
-        margin = 8
-        draw.ellipse([margin, margin, size-margin, size-margin], fill=color)
-
-        return image
 
     def on_quit():
         """Quit the application."""
         status("info", "Shutting down...")
         os._exit(0)
 
-    def on_reenter_token():
-        """Re-enter token."""
-        token = prompt_for_token()
-        if token:
-            global STREAMER_TOKEN
-            STREAMER_TOKEN = token
-            save_token(token)
-            status("ok", "Token updated!")
+    def on_reenter_setup():
+        """Re-enter setup (token + OBS password)."""
+        config = run_setup_dialog()
+        if config:
+            global STREAMER_TOKEN, OBS_PASSWORD
+            STREAMER_TOKEN = config.get("streamer_token")
+            OBS_PASSWORD = config.get("obs_password", "")
+            status("ok", "Setup updated!")
 
     # Build menu
     menu = Menu(
-        MenuItem(get_status_text, enabled=False),  # Display status
+        MenuItem("Kazumee Agent", lambda: None, enabled=False),
         MenuItem("Open Dashboard", lambda: open_dashboard()),
-        MenuItem("Re-enter token", lambda: on_reenter_token()),
+        MenuItem("Re-enter setup", lambda: on_reenter_setup()),
         MenuItem("Quit", lambda: on_quit()),
     )
 
@@ -283,24 +318,6 @@ def update_tray_icon():
         except:
             pass  # Icon update not critical
 
-def create_icon_image():
-    """Create a simple circle icon (for updating)."""
-    size = 64
-    image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-
-    if agent_status["obs_connected"] and agent_status["cloud_connected"]:
-        color = (76, 175, 80, 255)  # Green
-    elif agent_status["obs_connected"] or agent_status["cloud_connected"]:
-        color = (255, 193, 7, 255)  # Amber
-    else:
-        color = (244, 67, 54, 255)  # Red
-
-    margin = 8
-    draw.ellipse([margin, margin, size-margin, size-margin], fill=color)
-
-    return image
-
 def start_auth_server():
     """Start localhost auth server."""
     try:
@@ -317,44 +334,12 @@ def start_auth_server():
 # ==============================================================================
 # SYSTEM TRAY ICON
 # ==============================================================================
-
-def create_tray_icon(is_connected=False):
-    """Create system tray icon."""
-    size = 64
-    image = Image.new('RGB', (size, size), color='black')
-    draw = ImageDraw.Draw(image)
-
-    # Draw circle (green if connected, red if not)
-    color = '#00ff00' if is_connected else '#ff0000'
-    draw.ellipse([10, 10, size-10, size-10], fill=color)
-
-    return image
-
-def setup_tray_icon(on_quit, on_login=None):
-    """Setup system tray icon with menu."""
-    menu_items = []
-
-    if on_login:
-        menu_items.append(MenuItem('Login', on_login))
-        menu_items.append(MenuItem('-', None))
-
-    menu_items.append(MenuItem('Quit', on_quit))
-
-    icon = Icon(
-        "Kazumee Agent",
-        image=create_tray_icon(is_connected=False),
-        menu=Menu(*menu_items)
-    )
-
-    return icon
-
-
 # ==============================================================================
 # STATUS PRINTER
 # ==============================================================================
 
 def status(kind, msg):
-    """Print colored status messages."""
+    """Print colored status messages (safely handle encoding)."""
     marks = {
         "ok": "\033[92m[ OK ]\033[0m",
         "warn": "\033[93m[WARN]\033[0m",
@@ -362,7 +347,15 @@ def status(kind, msg):
         "info": "\033[96m[ .. ]\033[0m"
     }
     mark = marks.get(kind, "[    ]")
-    print(f"{mark} {msg}", flush=True)
+    text = f"{mark} {msg}"
+    try:
+        print(text, flush=True)
+    except UnicodeEncodeError:
+        # Fallback for --windowed mode with redirected stdout
+        try:
+            print(text.encode('ascii', 'replace').decode('ascii'), flush=True)
+        except:
+            pass  # Last resort: silently fail
 
 
 # ==============================================================================
@@ -563,46 +556,60 @@ class CloudSide:
 # ==============================================================================
 
 def main():
-    global STREAMER_TOKEN
+    global STREAMER_TOKEN, OBS_PASSWORD
 
     print("\n" + "=" * 60)
     print("  KAZUMEE LIVE-CLIPPING AGENT")
     print("=" * 60 + "\n")
 
-    # Try to load saved token first
-    if not STREAMER_TOKEN:
-        STREAMER_TOKEN = load_token()
+    # Load config (token + OBS password)
+    config = load_config()
 
-    # If still no token, prompt user
-    if not STREAMER_TOKEN:
-        status("info", "No token found. Please enter your Kazumee agent token.")
-        STREAMER_TOKEN = prompt_for_token()
+    # If no config or missing required fields, run setup dialog
+    if not config or not config.get("streamer_token"):
+        if config and not config.get("streamer_token"):
+            status("info", "Config exists but missing token. Re-running setup.")
+        else:
+            status("info", "First run: please enter your credentials.")
 
-        if not STREAMER_TOKEN:
-            status("err", "No token provided. Exiting.")
+        config = run_setup_dialog()
+
+        if not config or not config.get("streamer_token"):
+            status("err", "Setup cancelled or failed. Exiting.")
             sys.exit(1)
 
-        save_token(STREAMER_TOKEN)
+    STREAMER_TOKEN = config.get("streamer_token")
+    OBS_PASSWORD = config.get("obs_password", "")
+
+    if not STREAMER_TOKEN:
+        status("err", "No valid token in config. Exiting.")
+        sys.exit(1)
+
+    status("ok", "Config loaded successfully")
 
     status("ok", "Authenticated!")
     status("info", f"OBS: {OBS_HOST}:{OBS_PORT}")
     status("info", f"Cloud: {CLOUD_WS_URL}")
 
-    # Create and start tray icon
-    tray = create_tray_icon()
-    threading.Thread(target=lambda: tray.run(), daemon=False).start()
-
-    # Connect to OBS in background
+    # Initialize OBS connection in background
     obs_side = OBSSide()
     obs_thread = threading.Thread(target=obs_side.connect, daemon=True)
     obs_thread.start()
 
-    # Give OBS a moment to connect
-    time.sleep(1)
+    # Start cloud connection in background
+    def cloud_loop():
+        try:
+            CloudSide(obs_side).run_forever()
+        except Exception as e:
+            status("err", f"Cloud error: {e}")
 
-    # Hold cloud connection on main thread
+    cloud_thread = threading.Thread(target=cloud_loop, daemon=False)
+    cloud_thread.start()
+
+    # Run tray icon on MAIN thread (required for pystray visibility)
     try:
-        CloudSide(obs_side).run_forever()
+        tray = create_tray_icon()
+        tray.run()  # Blocking call on main thread
     except KeyboardInterrupt:
         status("info", "Shutting down. Goodbye!")
         sys.exit(0)
