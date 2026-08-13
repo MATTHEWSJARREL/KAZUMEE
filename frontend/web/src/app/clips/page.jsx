@@ -202,11 +202,10 @@ export default function ClipsPage() {
 
   const handleApprove = async (clip) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/clips/review`, {
+      const response = await apiFetch('/api/clips/review', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           clip_id: clip.id,
@@ -229,11 +228,10 @@ export default function ClipsPage() {
   const handleReject = async (clip) => {
     if (!confirm(`Reject "${clip.title}"?`)) return;
     try {
-      const response = await fetch(`${getApiUrl()}/api/clips/review`, {
+      const response = await apiFetch('/api/clips/review', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           clip_id: clip.id,
@@ -256,11 +254,8 @@ export default function ClipsPage() {
   const handleDelete = async (clip) => {
     if (!confirm(`Delete "${clip.title}"?`)) return;
     try {
-      const response = await fetch(`${getApiUrl()}/api/clips/${clip.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+      const response = await apiFetch(`/api/clips/${clip.id}`, {
+        method: 'DELETE'
       });
       if (response.ok) {
         console.log('Clip deleted');
@@ -279,9 +274,16 @@ export default function ClipsPage() {
     if (!selectedClip) return;
     setExporting(true);
     try {
-      // Use dev endpoint (bypasses auth middleware)
-      const response = await fetch(`${getApiUrl()}/dev/clips/${selectedClip.id}/export`, {
-        method: 'POST'
+      const response = await apiFetch(`/api/clips/batch-export`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          clip_ids: [selectedClip.id],
+          platforms: [exportSettings.preset],
+          watermark: exportSettings.watermark
+        })
       });
 
       if (response.ok) {
