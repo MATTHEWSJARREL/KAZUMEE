@@ -535,9 +535,17 @@ class CloudSide:
         except ValueError:
             return
 
+        # Handle clip command (old format: "cmd": "clip")
         if data.get("cmd") == "clip":
             status("info", "[CLIP] HYPE MOMENT DETECTED - capturing clip...")
             self.obs.trigger_clip()
+
+        # Handle server keepalive ping (new format: "type": "ping")
+        elif data.get("type") == "ping":
+            status("debug", "Keepalive ping received from server")
+            ws.send(json.dumps({"type": "pong"}))
+
+        # Handle old ping format (fallback)
         elif data.get("cmd") == "ping":
             ws.send(json.dumps({"type": "pong"}))
 

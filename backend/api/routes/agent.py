@@ -74,25 +74,47 @@ async def websocket_agent_endpoint(websocket: WebSocket):
                 f"Total connected: {len(connected_agents)} | Registry: {list(connected_agents.keys())}")
 
     try:
-        while True:
-            # Wait for messages from agent (heartbeats, etc)
-            message = await websocket.receive_text()
-            connected_agents[streamer_id]["last_seen"] = datetime.utcnow()
+        import asyncio
 
-            try:
-                data = json.loads(message)
-                msg_type = data.get("type")
+        async def keepalive_pings():
+            """Send ping every 25s to keep WebSocket alive (prevent Railway timeout ~60s)."""
+            ping_count = 0
+            while streamer_id in connected_agents:
+                await asyncio.sleep(25)
+                try:
+                    if streamer_id in connected_agents:
+                        ws = connected_agents[streamer_id]["ws"]
+                        await ws.send_json({"type": "ping"})
+                        ping_count += 1
+                        logger.debug(f"[KEEPALIVE] Ping sent to streamer {streamer_id} (#{ping_count})")
+                except Exception as e:
+                    logger.warning(f"[KEEPALIVE] Failed to send ping to streamer {streamer_id}: {e}")
 
-                if msg_type == "agent_online":
-                    logger.info(f"Streamer {streamer_id}: agent online")
-                elif msg_type == "pong":
-                    pass  # Heartbeat response, ignore
-                elif msg_type == "clip_uploaded":
-                    logger.info(f"Streamer {streamer_id}: clip uploaded successfully")
-                else:
-                    logger.debug(f"Streamer {streamer_id}: unknown message type {msg_type}")
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON from agent: {message}")
+        # Start keepalive task
+        keepalive_task = asyncio.create_task(keepalive_pings())
+
+        try:
+            while True:
+                # Wait for messages from agent (heartbeats, etc)
+                message = await websocket.receive_text()
+                connected_agents[streamer_id]["last_seen"] = datetime.utcnow()
+
+                try:
+                    data = json.loads(message)
+                    msg_type = data.get("type")
+
+                    if msg_type == "agent_online":
+                        logger.info(f"Streamer {streamer_id}: agent online")
+                    elif msg_type == "pong":
+                        pass  # Heartbeat response, ignore
+                    elif msg_type == "clip_uploaded":
+                        logger.info(f"Streamer {streamer_id}: clip uploaded successfully")
+                    else:
+                        logger.debug(f"Streamer {streamer_id}: unknown message type {msg_type}")
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON from agent: {message}")
+        finally:
+            keepalive_task.cancel()
 
     except WebSocketDisconnect:
         logger.info(f"Agent disconnected: streamer {streamer_id}")
