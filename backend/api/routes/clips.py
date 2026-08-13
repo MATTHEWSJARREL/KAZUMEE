@@ -42,7 +42,7 @@ BASE_EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 
 @router.get("/")
 def get_clips(limit: int = 50, request: Request = None, db: Session = Depends(get_db)):
-	"""Get approved clips for current user's streamer"""
+	"""Get clips for current user's streamer (all statuses: pending, approved, etc)"""
 	if request:
 		user = get_current_user(request, required=True)
 		streamer_id = get_streamer_id_for_user(user)
@@ -51,7 +51,11 @@ def get_clips(limit: int = 50, request: Request = None, db: Session = Depends(ge
 	else:
 		raise HTTPException(status_code=401, detail="Authentication required")
 
-	clips = db.query(Clip).filter(Clip.status == "approved", Clip.streamer_id == streamer_id).order_by(Clip.created_at.desc()).limit(limit).all()
+	# Include all non-deleted clips (pending, approved, processing, etc)
+	clips = db.query(Clip).filter(
+		Clip.streamer_id == streamer_id,
+		Clip.status != "deleted"  # Exclude only deleted clips
+	).order_by(Clip.created_at.desc()).limit(limit).all()
 
 	return {
 		"clips": [
@@ -61,16 +65,24 @@ def get_clips(limit: int = 50, request: Request = None, db: Session = Depends(ge
 				"description": clip.description,
 				"file_path": clip.file_path,
 				"thumbnail_path": clip.thumbnail_path,
+				"status": clip.status,
+				"requested_by_type": clip.requested_by_type,
 				"requested_by_name": clip.requested_by_name,
 				"created_at": clip.created_at.isoformat(),
 				"approved_at": clip.approved_at.isoformat() if clip.approved_at else None,
 				"quality_score": clip.quality_score,
 				"tags": clip.tags,
+				"duration_seconds": clip.duration_seconds,
 				"export_status": clip.export_status,
 				"export_preset": clip.export_preset,
 				"export_path": clip.export_path,
 				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
-				"notes": clip.notes
+				"notes": clip.notes,
+				# Add playable URL for dashboard video player
+				"urls": {
+					"stream": f"{request.base_url}api/clips/stream/{clip.id}" if clip.file_path and os.path.exists(clip.file_path) else None,
+					"download": f"{request.base_url}api/clips/download/{clip.id}" if clip.file_path and os.path.exists(clip.file_path) else None,
+				}
 			}
 			for clip in clips
 		]
@@ -843,7 +855,7 @@ async def ingest_clip(
 			shutil.copyfileobj(clip.file, f)
 
 		file_size = os.path.getsize(file_path)
-		logger.info(f"Ingested clip from {file_uuid} ({file_size} bytes) for streamer {streamer_id}")
+		logger.info(f"[INGEST] Saved file {file_uuid} ({file_size} bytes) for streamer {streamer_id}")
 
 		# Create DB record (minimal, will be enriched by processing pipeline)
 		new_clip = Clip(
@@ -861,6 +873,9 @@ async def ingest_clip(
 		db.add(new_clip)
 		db.commit()
 		db.refresh(new_clip)
+
+		logger.info(f"[INGEST] ✅ Created DB record: clip_id={new_clip.id}, "
+		           f"streamer_id={streamer_id}, status=pending, file_size={file_size} bytes")
 
 		# Log event
 		insert_stream_event(
