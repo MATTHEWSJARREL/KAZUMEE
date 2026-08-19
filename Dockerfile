@@ -19,5 +19,6 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run backend with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120", "backend.main:app"]
+# Run backend with Gunicorn (shell form for $PORT expansion)
+# Railway injects PORT env var; defaults to 8000 for local dev
+CMD gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 120 backend.main:app
