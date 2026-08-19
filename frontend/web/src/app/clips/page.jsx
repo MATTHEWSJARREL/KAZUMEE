@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown, Play } from 'lucide-react';
 import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './clips.module.css';
 import VerticalPreviewModal from './VerticalPreviewModal';
+import VideoPlayerModal from './VideoPlayerModal';
 
 export default function ClipsPage() {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ export default function ClipsPage() {
   const [previewClip, setPreviewClip] = useState(null);
   const [selectedClips, setSelectedClips] = useState(new Set());
   const [batchExporting, setBatchExporting] = useState(false);
+  const [playingClip, setPlayingClip] = useState(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [exportSettings, setExportSettings] = useState({
     preset: 'tiktok',
     platforms: ['tiktok'],
@@ -87,6 +90,11 @@ export default function ClipsPage() {
       newSelected.add(clipId);
     }
     setSelectedClips(newSelected);
+  };
+
+  const handlePlayClip = (clip) => {
+    setPlayingClip(clip);
+    setShowVideoPlayer(true);
   };
 
   const handleBurnCaptions = async (clip) => {
@@ -452,6 +460,15 @@ export default function ClipsPage() {
                       Processing
                     </div>
                   )}
+                  {/* Play button overlay */}
+                  <button
+                    className={styles.playButton}
+                    onClick={() => handlePlayClip(clip)}
+                    title="Play video"
+                    aria-label="Play video"
+                  >
+                    <Play size={32} fill="currentColor" />
+                  </button>
                 </div>
 
                 <div className={styles.clipContent}>
@@ -549,6 +566,13 @@ export default function ClipsPage() {
         clip={previewClip}
         isOpen={showVerticalPreview}
         onClose={() => setShowVerticalPreview(false)}
+      />
+
+      {/* Video Player Modal */}
+      <VideoPlayerModal
+        clip={playingClip}
+        isOpen={showVideoPlayer}
+        onClose={() => setShowVideoPlayer(false)}
       />
 
       {/* Export Modal */}

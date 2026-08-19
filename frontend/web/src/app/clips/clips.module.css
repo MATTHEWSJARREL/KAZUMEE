@@ -462,6 +462,35 @@
   50% { opacity: 0.5; }
 }
 
+.playButton {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 0;
+}
+
+.clipCard:hover .playButton {
+  opacity: 1;
+}
+
+.playButton:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.playButton:active {
+  transform: scale(0.95);
+}
+
 .clipContent {
   padding: 16px;
   display: flex;
