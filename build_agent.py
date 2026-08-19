@@ -30,7 +30,7 @@ def build():
     # PyInstaller command
     cmd = [
         "pyinstaller",
-        "--onefile",                           # Single executable
+        "--onedir",                            # Directory with all files (more reliable)
         "--windowed",                          # No console window (for tray)
         "--icon=kazumee.ico" if os.path.exists("kazumee.ico") else None,
         "--name=KazumeeAgent",                 # Output name
@@ -47,7 +47,7 @@ def build():
     try:
         result = subprocess.run(cmd, check=True)
 
-        exe_path = "dist/KazumeeAgent.exe" if sys.platform == "win32" else "dist/KazumeeAgent"
+        exe_path = "dist/KazumeeAgent/KazumeeAgent.exe" if sys.platform == "win32" else "dist/KazumeeAgent/KazumeeAgent"
         if os.path.exists(exe_path):
             print("\n" + "=" * 60)
             print("[SUCCESS] BUILD SUCCESSFUL")
@@ -57,10 +57,11 @@ def build():
             print("\nNext steps:")
             print("1. Test locally: python kazumee-agent.py")
             print(f"2. Or run: {exe_path}")
-            print("3. Upload to GitHub releases")
+            print("3. Create .zip of dist/KazumeeAgent/ folder")
+            print("4. Upload to GitHub releases")
             return 0
         else:
-            print("[FAIL] Executable not found")
+            print("[FAIL] Executable not found at {exe_path}")
             return 1
 
     except subprocess.CalledProcessError as e:

@@ -117,3 +117,26 @@
     padding: 20px;
   }
 }
+
+@media (max-width: 480px) {
+  .container {
+    min-height: 100dvh;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .branding {
+    display: none;
+  }
+
+  .authContainer {
+    width: 100%;
+    padding: 12px;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

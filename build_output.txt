@@ -1,0 +1,166 @@
+﻿python : 443 INFO: PyInstaller: 6.21.0, contrib hooks: 2026.6
+At line:1 char:340
++ ... "c:\Users\ADMIN\Desktop\kazumi 1"; python build_agent.py 2>&1 | Tee-O ...
++                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (443 INFO: PyIns...b hooks: 2026.6:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+444 INFO: Python: 3.11.9
+640 INFO: Platform: Windows-10-10.0.19045-SP0
+640 INFO: Python environment: C:\Users\ADMIN\Desktop\kazumi 1\venv311
+642 INFO: wrote C:\Users\ADMIN\Desktop\kazumi 1\KazumeeAgent.spec
+667 INFO: Module search paths (PYTHONPATH):
+['c:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311\\Scripts\\pyinstaller.exe',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\python311.zip',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\DLLs',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib',
+ 'C:\\Program '
+ 'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311\\Lib\\site-packages',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311\\Lib\\site-packages\\win32',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311\\Lib\\site-packages\\win32\\lib',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1\\venv311\\Lib\\site-packages\\pythonwin',
+ 'C:\\Users\\ADMIN\\Desktop\\kazumi 1']
+2908 INFO: Appending 'datas' from .spec
+2908 INFO: checking Analysis
+2909 INFO: Building Analysis because Analysis-00.toc is non existent
+2909 INFO: Looking for Python shared library...
+2909 INFO: Using Python shared library: C:\Program 
+Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\python311.dll
+2909 INFO: Running Analysis Analysis-00.toc
+2909 INFO: Target bytecode optimization level: 0
+2909 INFO: Initializing module dependency graph...
+2916 INFO: Initializing module graph hook caches...
+3053 INFO: Analyzing modules for base_library.zip ...
+16971 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+19240 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+42307 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+44042 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+60307 INFO: Caching module dependency graph...
+60922 INFO: Analyzing C:\Users\ADMIN\Desktop\kazumi 1\kazumee-agent.py
+61819 INFO: Processing standard module hook 'hook-urllib3.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+63274 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+63278 INFO: SetuptoolsInfo: initializing cached setuptools info...
+70480 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+73288 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+75189 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+77695 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+87660 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+91025 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+92238 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+107995 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+110740 INFO: Processing standard module hook 'hook-bcrypt.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+110936 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+112185 INFO: Processing standard module hook 'hook-pystray.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+118389 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+119481 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+119714 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+120508 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+124650 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+129589 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+134072 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+134697 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+139193 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+139858 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+154393 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+155104 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+156017 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+156019 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+157361 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+157422 INFO: Processing module hooks (post-graph stage)...
+158923 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+159297 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks'
+159368 INFO: Performing binary vs. data reclassification (938 entries)
+160834 INFO: Looking for ctypes DLLs
+161140 INFO: Analyzing run-time hooks ...
+161157 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+161167 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+161171 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+161189 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+161194 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+161300 INFO: Creating base_library.zip...
+161373 INFO: Looking for dynamic libraries
+168159 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\ADMIN\\Desktop\\kazumi 
+1\\venv311\\Lib\\site-packages\\numpy.libs']
+168159 INFO: Extra DLL search directories (PATH): []
+184148 INFO: Warnings written to C:\Users\ADMIN\Desktop\kazumi 1\build\KazumeeAgent\warn-KazumeeAgent.txt
+185363 INFO: Graph cross-reference written to C:\Users\ADMIN\Desktop\kazumi 1\build\KazumeeAgent\xref-KazumeeAgent.html
+186292 INFO: checking PYZ
+187231 INFO: checking PKG
+187431 INFO: Building because toc changed
+187431 INFO: Building PKG (CArchive) KazumeeAgent.pkg
+249406 INFO: Building PKG (CArchive) KazumeeAgent.pkg completed successfully.
+249609 INFO: Bootloader C:\Users\ADMIN\Desktop\kazumi 
+1\venv311\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+249610 INFO: checking EXE
+249681 INFO: Building because toc changed
+249681 INFO: Building EXE from EXE-00.toc
+249714 INFO: Copying bootloader EXE to C:\Users\ADMIN\Desktop\kazumi 1\dist\KazumeeAgent.exe
+250048 INFO: Copying icon to EXE
+250257 INFO: Copying 0 resources to EXE
+250257 INFO: Embedding manifest in EXE
+250538 INFO: Appending PKG archive to EXE
+251345 INFO: Fixing EXE headers
+254634 INFO: Building EXE from EXE-00.toc completed successfully.
+255010 INFO: Build complete! The results are available in: C:\Users\ADMIN\Desktop\kazumi 1\dist
+
+============================================================
+  BUILDING KAZUMEE AGENT
+============================================================
+
+[INFO] Running PyInstaller...
+[INFO] Command: pyinstaller --onefile --windowed --name=KazumeeAgent --add-data=kazumee-agent.py:. kazumee-agent.py
+
+
+============================================================
+[SUCCESS] BUILD SUCCESSFUL
+============================================================
+
+Executable: dist/KazumeeAgent.exe
+Size: 34.0 MB
+
+Next steps:
+1. Test locally: python kazumee-agent.py
+2. Or run: dist/KazumeeAgent.exe
+3. Upload to GitHub releases

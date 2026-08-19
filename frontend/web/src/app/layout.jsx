@@ -12,13 +12,24 @@ const queryClient = new QueryClient({
   },
 });
 
+export const metadata = {
+  title: 'Kazumee',
+  viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+};
+
 export default function RootLayout({children}) {
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster />
-    </QueryClientProvider>
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
+      <body>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <Toaster />
+        </QueryClientProvider>
+      </body>
+    </html>
   );
 }
-
-// Add navigation link to dashboard in your header

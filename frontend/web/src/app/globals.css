@@ -2,6 +2,17 @@
    KAZUMEE — DARK GLASS THEME TOKENS
    ============================================ */
 
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
 :root {
   --bg-void: #060a14;
   --bg-gradient: radial-gradient(circle at 20% 0%, rgba(47, 111, 237, 0.16) 0%, transparent 45%), radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.14) 0%, transparent 40%), linear-gradient(180deg, #070b16 0%, #0a0f1e 45%, #060a14 100%);
