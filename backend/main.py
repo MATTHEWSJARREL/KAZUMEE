@@ -2518,11 +2518,17 @@ async def restart_engine(request: Request):
         return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
+    import os
     import uvicorn
+
+    # Read PORT from environment (Railway injects this)
+    # Defaults to 8000 for local development
+    port = int(os.environ.get("PORT", 8000))
+
     uvicorn.run(
         "backend.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=False,
         workers=1,  # CRITICAL: in-memory registry requires single worker
     )
