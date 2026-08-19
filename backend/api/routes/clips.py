@@ -30,6 +30,104 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# ==============================================================================
+# CLIP NORMALIZATION - Convert to browser-playable MP4/H.264/AAC
+# ==============================================================================
+
+def transcode_clip_to_mp4(input_path: str, output_path: str = None) -> bool:
+	"""
+	Transcode clip to browser-safe MP4 with H.264 video + AAC audio.
+	Adds +faststart to move moov atom to front (enables progressive download).
+	Returns True if successful, False if ffmpeg not available or transcode failed.
+	"""
+	import subprocess
+
+	if output_path is None:
+		output_path = input_path
+
+	try:
+		# Check if ffmpeg is available
+		subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, timeout=5)
+	except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+		logger.warning("[TRANSCODE] ffmpeg not found, skipping normalization")
+		return False
+
+	try:
+		cmd = [
+			"ffmpeg",
+			"-i", input_path,
+			"-c:v", "libx264",  # H.264 video codec
+			"-c:a", "aac",      # AAC audio codec
+			"-movflags", "+faststart",  # moov atom at front
+			"-y",               # Overwrite output
+			output_path
+		]
+
+		result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+		if result.returncode == 0:
+			logger.info(f"[TRANSCODE] ✅ Successfully transcoded to MP4: {output_path}")
+			return True
+		else:
+			logger.error(f"[TRANSCODE] ffmpeg error: {result.stderr}")
+			return False
+
+	except subprocess.TimeoutExpired:
+		logger.error(f"[TRANSCODE] ffmpeg timeout (5min)")
+		return False
+	except Exception as e:
+		logger.error(f"[TRANSCODE] error: {e}")
+		return False
+
+
+def get_clip_codec_info(file_path: str) -> dict:
+	"""
+	Get video codec info from a clip file using ffprobe.
+	Returns {"container": "...", "video_codec": "...", "audio_codec": "..."} or empty dict if ffprobe unavailable.
+	"""
+	import subprocess
+	import json
+
+	try:
+		cmd = [
+			"ffprobe",
+			"-v", "quiet",
+			"-print_format", "json",
+			"-show_format",
+			"-show_streams",
+			file_path
+		]
+
+		result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+		if result.returncode == 0:
+			data = json.loads(result.stdout)
+			format_name = data.get("format", {}).get("format_name", "unknown")
+
+			video_codec = None
+			audio_codec = None
+			for stream in data.get("streams", []):
+				if stream.get("codec_type") == "video" and not video_codec:
+					video_codec = stream.get("codec_name", "unknown")
+				elif stream.get("codec_type") == "audio" and not audio_codec:
+					audio_codec = stream.get("codec_name", "unknown")
+
+			return {
+				"container": format_name,
+				"video_codec": video_codec or "none",
+				"audio_codec": audio_codec or "none"
+			}
+		else:
+			logger.warning(f"[FFPROBE] failed: {result.stderr}")
+			return {}
+
+	except FileNotFoundError:
+		logger.warning("[FFPROBE] ffprobe not found")
+		return {}
+	except Exception as e:
+		logger.error(f"[FFPROBE] error: {e}")
+		return {}
+
 
 # base dir allowed for opening files (prevent arbitrary access)
 BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "clips"))
@@ -854,8 +952,23 @@ async def ingest_clip(
 		with open(file_path, "wb") as f:
 			shutil.copyfileobj(clip.file, f)
 
-		file_size = os.path.getsize(file_path)
-		logger.info(f"[INGEST] Saved file {file_uuid} ({file_size} bytes) for streamer {streamer_id}")
+		file_size_orig = os.path.getsize(file_path)
+		logger.info(f"[INGEST] Saved raw file {file_uuid} ({file_size_orig} bytes) for streamer {streamer_id}")
+
+		# Check original codec
+		codec_info = get_clip_codec_info(file_path)
+		logger.info(f"[INGEST] Original codec: container={codec_info.get('container')}, "
+		           f"video={codec_info.get('video_codec')}, audio={codec_info.get('audio_codec')}")
+
+		# Transcode to browser-safe MP4/H.264/AAC (+faststart for streaming)
+		transcode_success = transcode_clip_to_mp4(file_path)
+
+		if transcode_success:
+			file_size = os.path.getsize(file_path)
+			logger.info(f"[INGEST] Transcoded to MP4: {file_size} bytes (was {file_size_orig} bytes)")
+		else:
+			file_size = file_size_orig
+			logger.warning(f"[INGEST] ⚠️ Transcode failed, using original file (may not be browser-playable)")
 
 		# Create DB record (minimal, will be enriched by processing pipeline)
 		new_clip = Clip(
