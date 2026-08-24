@@ -34,6 +34,7 @@ async def on_moment_detected_send_clip_command(moment: DetectedMoment):
         streamer_id = moment.streamer_id
         all_connected = list(connected_agents.keys())
 
+        logger.info(f"[MOMENT→AGENT] on_moment_detected_send_clip_command() registry id={id(connected_agents)}")
         logger.info(f"[MOMENT→AGENT] Moment detected for streamer {streamer_id} | "
                    f"Score: {moment.combined_score}/100 | Connected agents: {all_connected}")
 
@@ -209,7 +210,10 @@ async def manual_clip_capture(
         raise HTTPException(status_code=403, detail="Streamer role required for clip capture")
 
     try:
-        from backend.api.routes.agent import send_clip_command_to_agent
+        from backend.api.routes.agent import send_clip_command_to_agent, connected_agents
+
+        logger.info(f"[CLIP NOW] manual_clip_capture() called for streamer {streamer_id}")
+        logger.info(f"[CLIP NOW] registry id={id(connected_agents)}")
 
         # Send clip command to agent
         success = await send_clip_command_to_agent(streamer_id)

@@ -140,6 +140,7 @@ async def send_clip_command_to_agent(streamer_id: int) -> bool:
     all_connected_ids = list(connected_agents.keys())
 
     logger.info(f"[CLIP COMMAND] 🎬 Clip Now requested for streamer {streamer_id}")
+    logger.info(f"[CLIP COMMAND] send_clip_command_to_agent() registry id={id(connected_agents)}")
     logger.info(f"[CLIP COMMAND] Registry state: {len(connected_agents)} agents online | IDs: {all_connected_ids}")
     logger.info(f"[CLIP COMMAND] Checking if streamer {streamer_id} in registry: {streamer_id in connected_agents}")
 
@@ -185,6 +186,7 @@ async def registry_status(request: Request):
     DIAGNOSTIC ENDPOINT: Show current agent registry state.
     Helps diagnose if agents are registered and accessible.
     """
+    logger.info(f"[REGISTRY STATUS] Endpoint called, registry id={id(connected_agents)}")
     all_connected_ids = list(connected_agents.keys())
 
     registry_entries = []
@@ -198,7 +200,7 @@ async def registry_status(request: Request):
             "last_seen": last_seen.isoformat() if last_seen else None
         })
 
-    return {
+    result = {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "registry_object_id": id(connected_agents),
@@ -208,9 +210,13 @@ async def registry_status(request: Request):
         "diagnostic": {
             "note": "If agent is listed here, 'Clip Now' should find it. If missing, "
                    "check: 1) agent token (wrong streamer), 2) Railway workers (>1 = split registry), "
-                   "3) keepalive (connection dropped)"
+                   "3) keepalive (connection dropped)",
+            "registry_id_hex": hex(id(connected_agents)),
+            "instruction": "Compare this registry_object_id with backend logs [CLIP COMMAND] registry id. They MUST match."
         }
     }
+    logger.info(f"[REGISTRY STATUS] Returning registry id={id(connected_agents)}")
+    return result
 
 
 @router.post("/agent/token-verify")
