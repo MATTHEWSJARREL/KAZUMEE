@@ -191,9 +191,53 @@ async def debug_callbacks():
     }
 
 
+@router.post("/capture")
+async def manual_clip_capture(
+    request: Request,
+    current_user = Depends(get_current_user)
+):
+    """
+    REAL FEATURE: Streamer manually triggers a clip capture.
+    Sends clip command to the streamer's connected agent.
+    Returns status: 'success' if agent was online, 'agent_offline' if not connected.
+    """
+    ensure_agent_callback_registered()
+
+    # Get authenticated streamer_id
+    streamer_id = get_streamer_id_for_user(current_user)
+    if not streamer_id:
+        raise HTTPException(status_code=403, detail="Streamer role required for clip capture")
+
+    try:
+        from backend.api.routes.agent import send_clip_command_to_agent
+
+        # Send clip command to agent
+        success = await send_clip_command_to_agent(streamer_id)
+
+        if success:
+            return {
+                "status": "success",
+                "message": f"Clip command sent to agent for streamer {streamer_id}",
+                "action": "capturing"
+            }
+        else:
+            return {
+                "status": "agent_offline",
+                "message": f"Agent not connected for streamer {streamer_id}. Launch KazumeeAgent.exe to start capturing.",
+                "action": "none"
+            }
+
+    except Exception as e:
+        logger.error(f"Clip capture failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Clip capture error: {str(e)}")
+
+
 @router.post("/test")
 async def test_moment_detection(background_tasks: BackgroundTasks, streamer_id: int = 1):
-    """Simulate a moment detection for testing (defaults to streamer 1)."""
+    """
+    TEST ONLY: Simulate a moment detection for testing.
+    (Kept for backward compatibility with test scripts.)
+    """
     ensure_agent_callback_registered()
     try:
         from backend.core.moment_detector import get_detector

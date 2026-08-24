@@ -49,6 +49,13 @@ except ImportError:
     print("  pip install obsws-python websocket-client requests pystray pillow")
     sys.exit(1)
 
+# Optional: Try to import pynput for global hotkeys
+try:
+    from pynput import keyboard
+    HAS_HOTKEY_SUPPORT = True
+except ImportError:
+    HAS_HOTKEY_SUPPORT = False
+
 
 # ==============================================================================
 # CONFIGURATION
@@ -561,6 +568,60 @@ class CloudSide:
 
 
 # ==============================================================================
+# GLOBAL HOTKEY LISTENER (OPTIONAL)
+# ==============================================================================
+
+hotkey_listener = None
+obs_side_global = None  # Reference to OBSSide for hotkey handler
+
+def setup_hotkey_listener(obs_side):
+    """Start listening for global hotkey (Ctrl+Shift+C) to trigger clip."""
+    if not HAS_HOTKEY_SUPPORT:
+        status("warn", "pynput not installed - hotkey support disabled")
+        status("info", "  To enable: pip install pynput")
+        return
+
+    global obs_side_global
+    obs_side_global = obs_side
+
+    def on_hotkey_press():
+        status("info", "🎬 HOTKEY: Ctrl+Shift+C pressed - triggering clip...")
+        try:
+            obs_side_global.trigger_clip()
+        except Exception as e:
+            status("err", f"Hotkey clip failed: {e}")
+
+    # Define hotkey combo
+    from pynput.keyboard import Key, Controller, Listener
+
+    hotkey_combo = {Key.ctrl_l, Key.shift_l, Key.c}
+    current_keys = set()
+
+    def on_press(key):
+        try:
+            current_keys.add(key)
+            if hotkey_combo.issubset(current_keys):
+                on_hotkey_press()
+        except AttributeError:
+            pass
+
+    def on_release(key):
+        try:
+            current_keys.discard(key)
+        except AttributeError:
+            pass
+
+    try:
+        listener = Listener(on_press=on_press, on_release=on_release)
+        listener.start()
+        status("ok", "Global hotkey enabled: Ctrl+Shift+C to clip (no alt-tab needed)")
+        return listener
+    except Exception as e:
+        status("warn", f"Failed to setup hotkey listener: {e}")
+        return None
+
+
+# ==============================================================================
 # MAIN
 # ==============================================================================
 
@@ -604,6 +665,10 @@ def main():
     obs_side = OBSSide()
     obs_thread = threading.Thread(target=obs_side.connect, daemon=True)
     obs_thread.start()
+
+    # Setup global hotkey listener (optional)
+    global hotkey_listener
+    hotkey_listener = setup_hotkey_listener(obs_side)
 
     # Start cloud connection in background
     def cloud_loop():

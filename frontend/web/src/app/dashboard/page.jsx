@@ -17,43 +17,33 @@ export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentDate, setCurrentDate] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
-  const [testingMoment, setTestingMoment] = useState(false);
+  const [clipping, setClipping] = useState(false);
+  const [agentStatus, setAgentStatus] = useState(null);
 
-  // Test moment: simulate chat spike + audio peak
-  const handleTestMoment = async () => {
-    setTestingMoment(true);
+  // REAL FEATURE: Manually trigger clip capture
+  const handleClipNow = async () => {
+    setClipping(true);
     try {
-      // Reset detector
-      await apiFetch('/api/moments/reset', { method: 'POST' });
+      const res = await apiFetch('/api/moments/capture', { method: 'POST' });
+      const data = await res.json();
 
-      // Send 100 chat messages
-      for (let i = 1; i <= 100; i++) {
-        apiFetch('/api/moments/chat-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            source: 'test',
-            username: `viewer_${i}`,
-            message: 'CLIP THIS!'
-          })
-        }).catch(() => {});
+      if (data.status === 'success') {
+        // Show success toast
+        alert('✅ Clip command sent! Your agent is capturing...');
+        // Refresh clips in a moment
+        setTimeout(fetchClipsAndStatus, 3000);
+      } else if (data.status === 'agent_offline') {
+        // Show error: agent not connected
+        alert('❌ ' + data.message);
+        setAgentStatus('offline');
+      } else {
+        alert('⚠️ ' + (data.message || 'Clip capture failed'));
       }
-
-      // Wait a bit then send audio peak
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      await apiFetch('/api/moments/audio-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'test', peak_value: 0.95 })
-      });
-
-      // Wait for processing and refresh
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      fetchClipsAndStatus();
     } catch (err) {
-      console.error('Test moment failed:', err);
+      console.error('Clip capture error:', err);
+      alert('❌ Failed to send clip command. Check your connection.');
     } finally {
-      setTestingMoment(false);
+      setClipping(false);
     }
   };
 
@@ -256,16 +246,25 @@ export default function Dashboard() {
               <div>
                 <h1>Dashboard</h1>
               </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                {agentStatus === 'offline' && (
+                  <span style={{ fontSize: '13px', color: '#f59e0b', fontWeight: '500' }}>
+                    ⚠️ Agent offline
+                  </span>
+                )}
                 <button
                   className={styles.newBtn}
-                  onClick={handleTestMoment}
-                  disabled={testingMoment}
-                  style={{ opacity: testingMoment ? 0.6 : 1 }}
+                  onClick={handleClipNow}
+                  disabled={clipping}
+                  style={{
+                    opacity: clipping ? 0.6 : 1,
+                    backgroundColor: '#9333ea',
+                    fontWeight: '600'
+                  }}
+                  title="Manually trigger a clip capture on your stream"
                 >
-                  {testingMoment ? 'Testing...' : '🧪 Test Moment'}
+                  {clipping ? '🎬 Capturing...' : '🎬 Clip Now'}
                 </button>
-                <button className={styles.newBtn}>+ New Clip</button>
               </div>
             </div>
 
