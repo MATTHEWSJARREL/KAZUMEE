@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """
-Seed minimal demo data for development.
+Seed minimal demo data for development ONLY.
 Creates a demo streamer + viewer if none exist.
+
+WARNING: This script is for LOCAL DEVELOPMENT only.
+Do NOT run in production. Real streamers should be created via signup.
 """
 import os
 import sys
 from pathlib import Path
+
+# Safety guard: only run if explicitly enabled via environment variable
+if os.getenv("ENABLE_DEMO_SEED", "false").lower() != "true":
+    print("Demo seed is disabled. Set ENABLE_DEMO_SEED=true to run (development only).")
+    sys.exit(0)
 
 root_dir = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root_dir))

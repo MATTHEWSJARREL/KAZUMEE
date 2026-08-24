@@ -112,12 +112,12 @@ export default function Dashboard() {
           if (allClipsData.clips && Array.isArray(allClipsData.clips)) {
             clipsToShow.push(...allClipsData.clips.map(clip => ({
               id: clip.id,
-              title: clip.title || 'Clip',
+              title: clip.title || 'Untitled Clip',
               description: clip.description || 'Auto-generated clip',
               views: 0,
               timestamp: new Date(clip.created_at).toLocaleString(),
-              duration: clip.duration_seconds ? `${Math.round(clip.duration_seconds)}s` : '45s',
-              status: 'published'
+              duration: clip.duration_seconds ? `${Math.round(clip.duration_seconds)}s` : '—',
+              status: clip.status || 'pending'
             })));
           }
         } else {
@@ -237,7 +237,6 @@ export default function Dashboard() {
             </div>
             <button className={styles.notifBtn}>
               <Bell size={20} />
-              <span className={styles.badge}>3</span>
             </button>
             <div className={styles.userNav}>
               <div className={styles.avatarBg}>{initials}</div>
@@ -281,7 +280,7 @@ export default function Dashboard() {
               </div>
               <div className={styles.statCard}>
                 <div className={styles.statLabel}>VIEWERS</div>
-                <div className={styles.statValue}>{momentStatus?.active_viewers || 45}</div>
+                <div className={styles.statValue}>{momentStatus?.active_viewers !== undefined ? momentStatus.active_viewers : '—'}</div>
               </div>
               <div className={styles.statCard}>
                 <div className={styles.statLabel}>MOMENTS</div>
