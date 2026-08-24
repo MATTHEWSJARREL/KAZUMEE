@@ -60,8 +60,11 @@ async def websocket_agent_endpoint(websocket: WebSocket):
     # (token is NOT logged anywhere — verified locally, result only)
     streamer_id = verify_agent_token(token)
     if not streamer_id:
+        logger.warning(f"[AGENT REGISTRY] ❌ Token verification failed or returned None")
         await websocket.close(code=1008, reason="Invalid or expired token")
         return
+
+    logger.info(f"[AGENT REGISTRY] ✅ Token verified for streamer_id: {streamer_id}")
 
     await websocket.accept()
 
@@ -70,8 +73,10 @@ async def websocket_agent_endpoint(websocket: WebSocket):
         "ws": websocket,
         "last_seen": datetime.utcnow()
     }
-    logger.info(f"[AGENT REGISTRY] ✅ Agent online for streamer {streamer_id} | "
-                f"Total connected: {len(connected_agents)} | Registry: {list(connected_agents.keys())}")
+    logger.info(f"[AGENT REGISTRY] ✅ Agent REGISTERED: streamer_id={streamer_id} | "
+                f"Total connected: {len(connected_agents)} | Registry contents: {list(connected_agents.keys())}")
+    logger.info(f"[AGENT REGISTRY] DIAGNOSTIC: connected_agents object id={id(connected_agents)}, "
+                f"entries: {[(sid, agent_info.get('ws')) for sid, agent_info in connected_agents.items()]}")
 
     try:
         import asyncio
@@ -131,14 +136,28 @@ async def send_clip_command_to_agent(streamer_id: int) -> bool:
     Send clip command to connected agent for this streamer.
     Returns True if agent was online and command sent.
     """
-    # Log the attempt with full debug info
+    # Log the attempt with FULL registry state for diagnosis
     all_connected_ids = list(connected_agents.keys())
-    logger.info(f"[CLIP COMMAND] Moment detected for streamer {streamer_id} | "
-                f"Connected agents: {all_connected_ids}")
+
+    logger.info(f"[CLIP COMMAND] 🎬 Clip Now requested for streamer {streamer_id}")
+    logger.info(f"[CLIP COMMAND] Registry state: {len(connected_agents)} agents online | IDs: {all_connected_ids}")
+    logger.info(f"[CLIP COMMAND] Checking if streamer {streamer_id} in registry: {streamer_id in connected_agents}")
+
+    # DIAGNOSTIC: Log full registry details
+    for sid, agent_info in connected_agents.items():
+        last_seen = agent_info.get("last_seen")
+        ws_state = "open" if agent_info.get("ws") else "None"
+        logger.info(f"[CLIP COMMAND] Registry entry: streamer_id={sid}, "
+                   f"ws={ws_state}, last_seen={last_seen}")
 
     if streamer_id not in connected_agents:
         logger.warning(f"[CLIP COMMAND] ❌ No agent connected for streamer {streamer_id} | "
-                      f"Available: {all_connected_ids}")
+                      f"Available in registry: {all_connected_ids}")
+        logger.warning(f"[CLIP COMMAND] DIAGNOSTIC: Clip requested for {streamer_id}, "
+                      f"but registry only has: {all_connected_ids}. This means either:")
+        logger.warning(f"  1. Agent didn't register with this streamer_id")
+        logger.warning(f"  2. Registry split across multiple worker processes")
+        logger.warning(f"  3. Agent connection dropped (check keepalive)")
         return False
 
     try:
@@ -152,12 +171,47 @@ async def send_clip_command_to_agent(streamer_id: int) -> bool:
         # Remove the dead connection
         if streamer_id in connected_agents:
             del connected_agents[streamer_id]
+            logger.info(f"[CLIP COMMAND] Removed dead connection for streamer {streamer_id}")
         return False
 
 
 # ==============================================================================
 # TOKEN VERIFICATION
 # ==============================================================================
+
+@router.get("/agent/registry-status")
+async def registry_status(request: Request):
+    """
+    DIAGNOSTIC ENDPOINT: Show current agent registry state.
+    Helps diagnose if agents are registered and accessible.
+    """
+    all_connected_ids = list(connected_agents.keys())
+
+    registry_entries = []
+    for sid, agent_info in connected_agents.items():
+        last_seen = agent_info.get("last_seen")
+        ws = agent_info.get("ws")
+        ws_state = "connected" if ws else "None"
+        registry_entries.append({
+            "streamer_id": sid,
+            "websocket": ws_state,
+            "last_seen": last_seen.isoformat() if last_seen else None
+        })
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "registry_object_id": id(connected_agents),
+        "total_connected": len(connected_agents),
+        "connected_streamer_ids": all_connected_ids,
+        "entries": registry_entries,
+        "diagnostic": {
+            "note": "If agent is listed here, 'Clip Now' should find it. If missing, "
+                   "check: 1) agent token (wrong streamer), 2) Railway workers (>1 = split registry), "
+                   "3) keepalive (connection dropped)"
+        }
+    }
+
 
 @router.post("/agent/token-verify")
 async def verify_token(request: Request):
