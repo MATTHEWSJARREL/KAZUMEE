@@ -41,19 +41,30 @@ class ClipGeneratorService:
 
     def on_moment_detected(self, moment: DetectedMoment):
         """Callback when moment is detected"""
-        logger.warning(f"🎬 TRIGGER FIRED: moment_id={moment.moment_id} score={moment.combined_score:.2f}")
+        logger.info(f"[CLIP GENERATOR] Moment fired: moment_id={moment.moment_id} score={moment.combined_score:.2f}")
 
+        # CRITICAL: Check if agent is connected for this streamer
+        # If agent is online, it will handle clip capture (send_clip_command_to_agent already fired)
+        # Only use backend fallback if NO agent is connected (testing or demo mode)
+        from backend.api.routes.agent import connected_agents
+
+        if moment.streamer_id in connected_agents:
+            logger.info(f"[CLIP GENERATOR] Agent connected for streamer {moment.streamer_id} — "
+                       f"agent will capture real OBS buffer (not using backend fallback)")
+            return
+
+        # No agent connected: use backend fallback (test video for demo/testing)
         if self.is_processing:
-            logger.warning(f"Skipping (already processing)")
+            logger.debug(f"[CLIP GENERATOR] Skipping (already processing)")
             return
 
         self.is_processing = True
         try:
-            # Create clip record
+            # Create clip record (test video only - real clips come from agent)
             self._create_clip_record(moment)
-            logger.warning(f"✅ CLIP CREATED from moment")
+            logger.info(f"[CLIP GENERATOR] Test clip created (no agent connected)")
         except Exception as e:
-            logger.error(f"❌ Clip creation failed: {traceback.format_exc()}")
+            logger.error(f"[CLIP GENERATOR] Creation failed: {traceback.format_exc()}")
         finally:
             self.is_processing = False
 
@@ -92,29 +103,29 @@ class ClipGeneratorService:
             extractor = get_extractor()
             video_source = None
 
-            # Try OBS replay buffer first
+            # Try OBS replay buffer first (test video fallback only, no agent online)
             if self.obs_adapter:
                 try:
-                    replay_path = self.obs_adapter.get_replay_buffer_status()
-                    if replay_path and os.path.exists(replay_path):
-                        video_source = replay_path
-                        logger.info(f"Using OBS replay buffer: {video_source}")
+                    # NOTE: get_replay_buffer_status() is async; must be awaited in async context
+                    # Since this is sync context (callback), we skip OBS and use fallback
+                    # (real clips come from agent via send_clip_command_to_agent)
+                    logger.debug(f"Backend clip generator (test video mode): not accessing OBS")
                 except Exception as e:
-                    logger.warning(f"Could not access OBS replay buffer: {e}")
+                    logger.debug(f"OBS not accessed: {e}")
 
-            # Fall back to test video if OBS not available
+            # Fall back to test video (agent not connected - demo/test only)
             if not video_source:
                 fallback_video = "backend/data/test_videos/test_stream.mp4"
                 if os.path.exists(fallback_video):
                     video_source = fallback_video
-                    logger.info(f"Using fallback video: {video_source}")
+                    logger.warning(f"[CLIP GENERATOR] TEST MODE: Using demo video (agent not connected for real OBS): {video_source}")
                 else:
-                    logger.error("No video source available (OBS not connected and no fallback video)")
+                    logger.error("[CLIP GENERATOR] No video source available (no agent, no test video)")
                     log_event(
                         EventType.EXTRACTION_FAILED,
                         str(streamer_id),
                         "No video source available",
-                        error="OBS not connected and no fallback video"
+                        error="Agent not connected and no test video available"
                     )
                     return
 

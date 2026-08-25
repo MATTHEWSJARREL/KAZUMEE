@@ -594,20 +594,30 @@ async def lifespan(app: FastAPI):
     app.state.ingestion_task = asyncio.create_task(ingestion_loop(stop_event))
     app.state.chat_poller_task = asyncio.create_task(poll_chat_events(stop_event))
 
-    # Initialize Clip Generator Service (uses OBS adapter for real clip extraction)
+    # Initialize Agent Callback (send clip commands to connected agents on moment detection)
+    try:
+        from backend.api.routes.moment_detection import _register_agent_callback
+        from backend.core.moment_detector import get_detector
+
+        _register_agent_callback()
+        detector = get_detector()
+        print("[OK] Detector wired to Agent (send_clip_command_to_agent on moment fire)")
+    except Exception as e:
+        print(f"[WARN] Agent callback registration failed: {e}")
+
+    # Initialize Clip Generator Service (fallback for testing when NO agent connected)
     try:
         from backend.core.clip_generator_service import ClipGeneratorService, set_clip_generator
-        from backend.core.moment_detector import get_detector
 
         clip_generator = ClipGeneratorService(obs_adapter=obs_instance)
         set_clip_generator(clip_generator)
         app.state.clip_generator = clip_generator
-        print("[OK] Clip Generator Service initialized")
+        print("[OK] Clip Generator Service initialized (fallback for demo/test)")
 
         # Wire detector to clip generator callback
         detector = get_detector()
         detector.on_moment_detected(clip_generator.on_moment_detected)
-        print("[OK] Detector wired to Clip Generator Service")
+        print("[OK] Detector wired to Clip Generator (test/demo fallback)")
 
         # Wire detector to worker manager (broadcast moments to active workers)
         from backend.services.worker_manager import get_worker_manager
