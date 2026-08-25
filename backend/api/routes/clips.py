@@ -168,7 +168,17 @@ def extract_thumbnail(video_path: str, output_path: str) -> bool:
 
 
 # base dir allowed for opening files (prevent arbitrary access)
-BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "clips"))
+# CRITICAL: Railway Volume mounted at /app/data/clips for persistence across redeploys
+# Use env var CLIPS_STORAGE_PATH for override; default to Railway mount path
+BASE_CLIPS_DIR = os.getenv("CLIPS_STORAGE_PATH", "/app/data/clips")
+os.makedirs(BASE_CLIPS_DIR, exist_ok=True)
+
+# For local development, fallback to relative path if /app doesn't exist
+if not os.path.exists(os.path.dirname(BASE_CLIPS_DIR)):
+	BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "clips"))
+	os.makedirs(BASE_CLIPS_DIR, exist_ok=True)
+	logger.warning(f"[STORAGE] /app/data/clips not found, using local path: {BASE_CLIPS_DIR}")
+
 BASE_EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "exports"))
 
 

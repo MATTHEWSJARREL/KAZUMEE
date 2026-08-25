@@ -13,10 +13,11 @@ startCommand = "python -m backend.main"
 #    This persists all MP4 files and thumbnails across redeploys
 #
 # 2. The Python backend reads clips from BASE_CLIPS_DIR which resolves to:
-#    /app/backend/data/clips (symlinked or mapped to the volume mount)
+#    /app/data/clips (the Volume mount path for persistence)
+#    Falls back to /app/backend/data/clips for local development if mount doesn't exist
 #
-# Environment variables (if needed to override):
-# - CLIPS_STORAGE_PATH=/app/data/clips (optional, defaults to /app/backend/data/clips)
+# Environment variables (optional overrides):
+# - CLIPS_STORAGE_PATH=<path> (overrides /app/data/clips default)
 
 [variables]
 # Port is read from Railway's PORT env var at runtime
