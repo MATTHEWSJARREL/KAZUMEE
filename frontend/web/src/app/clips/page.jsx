@@ -2,11 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown, Play } from 'lucide-react';
+import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, Eye, CheckCircle, Clock, Trash2, Download, Share2, Copy, Check, Smartphone, ThumbsUp, ThumbsDown, Play, Loader } from 'lucide-react';
 import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './clips.module.css';
 import VerticalPreviewModal from './VerticalPreviewModal';
 import VideoPlayerModal from './VideoPlayerModal';
+
+// Helper: Format duration seconds to "M:SS"
+const formatDuration = (seconds) => {
+  if (!seconds) return '—';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Helper: Format timestamp to relative time ("2h ago")
+const formatRelativeTime = (isoString) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
 
 export default function ClipsPage() {
   const navigate = useNavigate();
@@ -427,7 +453,10 @@ export default function ClipsPage() {
 
         {/* Clips Grid */}
         {loading ? (
-          <div className={styles.loadingState}>Loading clips...</div>
+          <div className={styles.loadingState}>
+            <Loader size={32} className={styles.spinner} />
+            <p>Loading clips...</p>
+          </div>
         ) : filteredClips.length === 0 ? (
           <div className={styles.emptyState}>
             <Video size={48} />
@@ -445,9 +474,18 @@ export default function ClipsPage() {
                   onChange={() => toggleClipSelection(clip.id)}
                 />
                 <div className={styles.clipThumbnail}>
-                  <div className={styles.placeholder}>
-                    <Video size={32} />
-                  </div>
+                  {clip.urls?.thumbnail ? (
+                    <img src={clip.urls.thumbnail} alt={clip.title} className={styles.thumbnailImage} />
+                  ) : (
+                    <div className={styles.placeholder}>
+                      <Video size={32} />
+                    </div>
+                  )}
+                  {clip.duration_seconds && (
+                    <div className={styles.duration}>
+                      {formatDuration(clip.duration_seconds)}
+                    </div>
+                  )}
                   {clip.status === 'published' && (
                     <div className={styles.publishedOverlay}>
                       <CheckCircle size={24} />
@@ -488,7 +526,7 @@ export default function ClipsPage() {
                   </div>
 
                   <div className={styles.timestamp}>
-                    {new Date(clip.created_at).toLocaleString()}
+                    {formatRelativeTime(clip.created_at)}
                   </div>
                 </div>
 

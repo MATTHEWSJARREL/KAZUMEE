@@ -1,0 +1,23 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python -m backend.main"
+
+# Volume Configuration
+# IMPORTANT: Clips and thumbnails must be stored on a persistent volume
+# to survive redeploys. Configure in Railway Dashboard:
+#
+# 1. In the Service settings, add a Volume:
+#    Mount path: /app/data/clips
+#    This persists all MP4 files and thumbnails across redeploys
+#
+# 2. The Python backend reads clips from BASE_CLIPS_DIR which resolves to:
+#    /app/backend/data/clips (symlinked or mapped to the volume mount)
+#
+# Environment variables (if needed to override):
+# - CLIPS_STORAGE_PATH=/app/data/clips (optional, defaults to /app/backend/data/clips)
+
+[variables]
+# Port is read from Railway's PORT env var at runtime
+# ENABLE_DEMO_SEED=false (prevents seeding demo accounts)

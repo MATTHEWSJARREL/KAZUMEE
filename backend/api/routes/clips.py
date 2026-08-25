@@ -129,6 +129,44 @@ def get_clip_codec_info(file_path: str) -> dict:
 		return {}
 
 
+def extract_thumbnail(video_path: str, output_path: str) -> bool:
+	"""
+	Extract first frame (~1s in) as thumbnail using ffmpeg.
+	Returns True if successful, False otherwise.
+	"""
+	import subprocess
+
+	try:
+		cmd = [
+			"ffmpeg",
+			"-ss", "1",  # Seek to 1 second in
+			"-i", video_path,
+			"-vframes", "1",  # Extract exactly 1 frame
+			"-q:v", "3",  # Quality (1-31, lower=better)
+			"-y",  # Overwrite output
+			output_path
+		]
+
+		result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+		if result.returncode == 0:
+			logger.info(f"[THUMBNAIL] ✅ Extracted thumbnail: {output_path}")
+			return True
+		else:
+			logger.warning(f"[THUMBNAIL] ffmpeg failed: {result.stderr}")
+			return False
+
+	except FileNotFoundError:
+		logger.warning("[THUMBNAIL] ffmpeg not found, skipping thumbnail")
+		return False
+	except subprocess.TimeoutExpired:
+		logger.warning("[THUMBNAIL] ffmpeg timeout")
+		return False
+	except Exception as e:
+		logger.error(f"[THUMBNAIL] error: {e}")
+		return False
+
+
 # base dir allowed for opening files (prevent arbitrary access)
 BASE_CLIPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "clips"))
 BASE_EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "exports"))
@@ -176,10 +214,11 @@ def get_clips(limit: int = 50, request: Request = None, db: Session = Depends(ge
 				"export_path": clip.export_path,
 				"export_updated_at": clip.export_updated_at.isoformat() if clip.export_updated_at else None,
 				"notes": clip.notes,
-				# Add playable URL for dashboard video player
+				# Add playable URLs
 				"urls": {
 					"stream": f"{request.base_url}api/clips/stream/{clip.id}" if clip.file_path and os.path.exists(clip.file_path) else None,
 					"download": f"{request.base_url}api/clips/download/{clip.id}" if clip.file_path and os.path.exists(clip.file_path) else None,
+					"thumbnail": f"{request.base_url}api/clips/thumbnail/{clip.id}" if clip.thumbnail_path and os.path.exists(clip.thumbnail_path) else None,
 				}
 			}
 			for clip in clips
@@ -808,6 +847,29 @@ def download_clip(clip_id: int, request: Request, db: Session = Depends(get_db))
 	return FileResponse(clip.file_path, media_type="video/mp4", filename=filename)
 
 
+@router.get("/thumbnail/{clip_id:int}")
+def get_thumbnail(clip_id: int, request: Request, db: Session = Depends(get_db)):
+	"""Get thumbnail image for a clip (auth-gated)."""
+	from fastapi.responses import FileResponse
+
+	user = get_current_user(request, required=True)
+	if user.role != "streamer":
+		raise HTTPException(status_code=403, detail="Streamer role required")
+
+	streamer_id = get_streamer_id_for_user(user)
+	if not streamer_id:
+		raise HTTPException(status_code=403, detail="Not a streamer")
+
+	clip = db.query(Clip).filter(Clip.id == clip_id, Clip.streamer_id == streamer_id).first()
+	if not clip or not clip.thumbnail_path:
+		raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+	if not os.path.exists(clip.thumbnail_path):
+		raise HTTPException(status_code=404, detail="Thumbnail file not found on disk")
+
+	return FileResponse(clip.thumbnail_path, media_type="image/jpeg")
+
+
 @router.get("/{clip_id:int}/preview-vertical")
 def get_vertical_preview(clip_id: int, request: Request, db: Session = Depends(get_db)):
 	"""Get vertical (9:16) preview data for a clip"""
@@ -970,6 +1032,15 @@ async def ingest_clip(
 			file_size = file_size_orig
 			logger.warning(f"[INGEST] ⚠️ Transcode failed, using original file (may not be browser-playable)")
 
+		# Extract thumbnail (first frame at ~1s)
+		thumbnail_path = None
+		thumbnail_file = os.path.join(BASE_CLIPS_DIR, f"{file_uuid}_thumb.jpg")
+		if extract_thumbnail(file_path, thumbnail_file):
+			thumbnail_path = thumbnail_file
+			logger.info(f"[INGEST] Thumbnail created: {thumbnail_path}")
+		else:
+			logger.debug(f"[INGEST] Thumbnail extraction skipped or failed (using placeholder)")
+
 		# Create DB record (minimal, will be enriched by processing pipeline)
 		new_clip = Clip(
 			stream_session_id=1,  # Default session (TODO: resolve from streamer)
@@ -980,6 +1051,7 @@ async def ingest_clip(
 			requested_by_type="ai",
 			requested_by_name="Kazumee Agent",
 			file_path=file_path,
+			thumbnail_path=thumbnail_path,  # Set thumbnail path if extracted
 			duration_seconds=0,  # Will be calculated by processing pipeline
 			quality_score=0.5,  # Default; will be updated
 		)
