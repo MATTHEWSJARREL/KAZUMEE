@@ -2,6 +2,11 @@
 """
 Test Script: Stream Events → Chat Poller → Detector → Clip Capture
 Inserts fake chat_message rows into stream_events and verifies end-to-end flow.
+
+Usage:
+  python scripts/test_chat_to_detector.py           # Use throwaway test streamer
+  python scripts/test_chat_to_detector.py 7         # Test against streamer 7 (real connected agent)
+  python scripts/test_chat_to_detector.py 99        # Test against any streamer_id
 """
 
 import sys
@@ -131,21 +136,38 @@ def wait_for_detector_and_clips(db, streamer_id: int, timeout: int = 20, initial
     return False
 
 
-def main():
-    """Run the end-to-end test."""
+def main(streamer_id: int = None):
+    """
+    Run the end-to-end test.
+
+    Args:
+        streamer_id: If provided, test against this streamer (use real agent).
+                     If None, create/use a throwaway test streamer.
+    """
     db = SessionLocal()
     try:
         logger.info("=" * 70)
         logger.info("TEST: Stream Events → Chat Poller → Detector → Clip")
         logger.info("=" * 70)
 
-        # Step 1: Get/create test streamer
-        logger.info("\n[Step 1] Setup test streamer")
-        streamer_id = get_or_create_test_streamer(db)
+        # Step 1: Get streamer (use provided or create test)
+        logger.info("\n[Step 1] Setup streamer")
+        if streamer_id is not None:
+            # Use provided streamer_id (should have connected agent)
+            streamer = db.query(Streamer).filter(Streamer.id == streamer_id).first()
+            if not streamer:
+                logger.error(f"❌ Streamer {streamer_id} not found in database")
+                return 1
+            logger.info(f"✅ Using streamer: id={streamer.id}, username={streamer.username}")
+        else:
+            # Create/use throwaway test streamer
+            logger.info("Using throwaway test streamer (no real agent expected)")
+            streamer_id = get_or_create_test_streamer(db)
 
         # Step 2: Insert chat spike
         logger.info("\n[Step 2] Simulate chat spike")
-        num_messages = insert_chat_spike(db, streamer_id, num_messages=30, spike_name="test_run_1")
+        spike_name = f"test_run_{int(time.time())}"
+        num_messages = insert_chat_spike(db, streamer_id, num_messages=30, spike_name=spike_name)
 
         # Step 3: Wait for detector to fire and clip to be created
         logger.info("\n[Step 3] Wait for detector to fire and clip to be created")
@@ -156,6 +178,8 @@ def main():
         if clip_created:
             logger.info("✅ SUCCESS: End-to-end flow works!")
             logger.info("   Chat → StreamEvents → ChatPoller → Detector → Clip ✓")
+            if streamer_id:
+                logger.info(f"   Real OBS clip captured by agent for streamer {streamer_id}")
         else:
             logger.warning("⚠️  No clip created. Possible issues:")
             logger.warning("   1. Chat poller not running (check backend logs for [CHAT→DETECTOR])")
@@ -174,4 +198,18 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    # Parse CLI arguments
+    streamer_id = None
+    if len(sys.argv) > 1:
+        try:
+            streamer_id = int(sys.argv[1])
+            print(f"\n🎯 Testing against streamer {streamer_id}\n")
+        except ValueError:
+            print(f"❌ Invalid streamer_id: {sys.argv[1]} (must be integer)")
+            print(f"\nUsage: python scripts/test_chat_to_detector.py [streamer_id]")
+            print(f"Examples:")
+            print(f"  python scripts/test_chat_to_detector.py       # Use test streamer")
+            print(f"  python scripts/test_chat_to_detector.py 7     # Test streamer 7\n")
+            sys.exit(1)
+
+    exit(main(streamer_id=streamer_id))
