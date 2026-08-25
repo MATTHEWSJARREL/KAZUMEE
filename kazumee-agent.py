@@ -584,40 +584,25 @@ def setup_hotkey_listener(obs_side):
     global obs_side_global
     obs_side_global = obs_side
 
-    def on_hotkey_press():
-        status("info", "🎬 HOTKEY: Ctrl+Shift+C pressed - triggering clip...")
-        try:
-            obs_side_global.trigger_clip()
-        except Exception as e:
-            status("err", f"Hotkey clip failed: {e}")
-
-    # Define hotkey combo
-    from pynput.keyboard import Key, Controller, Listener
-
-    hotkey_combo = {Key.ctrl_l, Key.shift_l, Key.c}
-    current_keys = set()
-
-    def on_press(key):
-        try:
-            current_keys.add(key)
-            if hotkey_combo.issubset(current_keys):
-                on_hotkey_press()
-        except AttributeError:
-            pass
-
-    def on_release(key):
-        try:
-            current_keys.discard(key)
-        except AttributeError:
-            pass
-
     try:
-        listener = Listener(on_press=on_press, on_release=on_release)
-        listener.start()
+        from pynput.keyboard import GlobalHotKeys
+
+        def on_hotkey_press():
+            status("info", "🎬 HOTKEY: Ctrl+Shift+C pressed - triggering clip...")
+            try:
+                obs_side_global.trigger_clip()
+            except Exception as e:
+                status("err", f"Hotkey clip failed: {e}")
+
+        # Use string-based hotkey definition (simplest and most reliable)
+        hotkeys = GlobalHotKeys({'<ctrl>+<shift>+c': on_hotkey_press})
+        hotkeys.start()
         status("ok", "Global hotkey enabled: Ctrl+Shift+C to clip (no alt-tab needed)")
-        return listener
+        return hotkeys
+
     except Exception as e:
-        status("warn", f"Failed to setup hotkey listener: {e}")
+        status("warn", f"Hotkey setup failed (agent will still work): {e}")
+        status("info", "  Use 'Clip Now' button in dashboard instead")
         return None
 
 
@@ -686,6 +671,12 @@ def main():
         tray.run()  # Blocking call on main thread
     except KeyboardInterrupt:
         status("info", "Shutting down. Goodbye!")
+        # Clean up hotkey listener
+        if hotkey_listener:
+            try:
+                hotkey_listener.stop()
+            except Exception:
+                pass
         sys.exit(0)
 
 

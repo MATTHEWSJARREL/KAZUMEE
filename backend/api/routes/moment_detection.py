@@ -27,6 +27,7 @@ async def on_moment_detected_send_clip_command(moment: DetectedMoment):
     """
     Callback: When moment is detected, send clip command to ONLY that streamer's agent.
     CRITICAL: targeted send, not broadcast — prevents cross-account clip commands.
+    Logs whether moment came from real chat/audio or test.
     """
     try:
         from backend.api.routes.agent import send_clip_command_to_agent, connected_agents
@@ -35,8 +36,8 @@ async def on_moment_detected_send_clip_command(moment: DetectedMoment):
         all_connected = list(connected_agents.keys())
 
         logger.info(f"[MOMENT→AGENT] on_moment_detected_send_clip_command() registry id={id(connected_agents)}")
-        logger.info(f"[MOMENT→AGENT] Moment detected for streamer {streamer_id} | "
-                   f"Score: {moment.combined_score}/100 | Connected agents: {all_connected}")
+        logger.info(f"[MOMENT→AGENT] 🎬 MOMENT FIRED for streamer {streamer_id} | "
+                   f"Score: {moment.combined_score}/100 | Context: {moment.context} | Connected agents: {all_connected}")
 
         success = await send_clip_command_to_agent(streamer_id)
 

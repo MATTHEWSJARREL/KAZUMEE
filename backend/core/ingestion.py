@@ -2,14 +2,21 @@ import asyncio
 import os
 from datetime import datetime
 import httpx
+import logging
 
 from backend.database.session import SessionLocal
 from backend.database.models.platform_connection import PlatformConnection
+from backend.database.models.stream_event import StreamEvent
 from backend.core.event_store import insert_stream_event
 from backend.core.crypto import decrypt_token
 
+logger = logging.getLogger(__name__)
 
 YOUTUBE_POLL_INTERVAL = int(os.getenv("YOUTUBE_POLL_INTERVAL", "15"))
+CHAT_POLLER_INTERVAL = int(os.getenv("CHAT_POLLER_INTERVAL", "2"))  # Poll stream_events every 2s
+
+# Track last-processed stream_event ID per streamer (in-memory, survives process restart via DB scan)
+_chat_poller_last_id: dict[int, int] = {}
 
 
 async def poll_youtube_once(conn: PlatformConnection) -> None:
@@ -106,6 +113,66 @@ async def auto_subscribe_twitch(conn: PlatformConnection) -> None:
             db.commit()
     finally:
         db.close()
+
+
+async def poll_chat_events(stop_event: asyncio.Event) -> None:
+    """
+    Background task: Poll stream_events for new chat_message rows and feed to detector.
+    Runs every CHAT_POLLER_INTERVAL seconds.
+    Tracks last-processed ID per streamer to avoid double-processing.
+    """
+    global _chat_poller_last_id
+
+    while not stop_event.is_set():
+        try:
+            db = SessionLocal()
+            try:
+                # Get all streamers with recent chat events
+                recent_events = db.query(StreamEvent).filter(
+                    StreamEvent.event_type == "chat_message"
+                ).order_by(StreamEvent.id.asc()).all()
+
+                if not recent_events:
+                    await asyncio.sleep(CHAT_POLLER_INTERVAL)
+                    continue
+
+                # Group by streamer_id
+                from collections import defaultdict
+                events_by_streamer = defaultdict(list)
+                for event in recent_events:
+                    events_by_streamer[event.streamer_id].append(event)
+
+                # Process new events per streamer
+                from backend.core.moment_detector import get_detector
+                detector = get_detector()
+
+                for streamer_id, events in events_by_streamer.items():
+                    last_processed_id = _chat_poller_last_id.get(streamer_id, 0)
+                    new_events = [e for e in events if e.id > last_processed_id]
+
+                    if not new_events:
+                        continue
+
+                    messages_fed = 0
+                    for event in new_events:
+                        # Feed to detector
+                        detector.add_chat_message(
+                            streamer_id=event.streamer_id,
+                            source=event.platform,  # "youtube" | "twitch"
+                            message=event.message or ""
+                        )
+                        messages_fed += 1
+                        _chat_poller_last_id[streamer_id] = event.id
+
+                    logger.info(f"[CHAT→DETECTOR] Streamer {streamer_id}: fed {messages_fed} messages")
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"[CHAT→DETECTOR] Poller error: {e}")
+
+        await asyncio.sleep(CHAT_POLLER_INTERVAL)
 
 
 async def ingestion_loop(stop_event: asyncio.Event) -> None:

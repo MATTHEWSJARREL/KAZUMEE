@@ -63,7 +63,7 @@ from backend.core.auth import (
     verify_stream_access_token,
     resolve_streamer_id,
 )
-from backend.core.ingestion import ingestion_loop
+from backend.core.ingestion import ingestion_loop, poll_chat_events
 from backend.core.search import search_links, format_links_for_chat
 from backend.core.policy import evaluate_action
 from backend.core.pricing import limit_violation
@@ -588,10 +588,11 @@ async def lifespan(app: FastAPI):
     # Initialize streamer mode (defaults to True for security)
     app.state.streamer_mode = True
 
-    # Start ingestion loop
+    # Start ingestion loops
     stop_event = asyncio.Event()
     app.state.ingestion_stop = stop_event
     app.state.ingestion_task = asyncio.create_task(ingestion_loop(stop_event))
+    app.state.chat_poller_task = asyncio.create_task(poll_chat_events(stop_event))
 
     # Initialize Clip Generator Service (uses OBS adapter for real clip extraction)
     try:
@@ -702,6 +703,11 @@ async def lifespan(app: FastAPI):
     if hasattr(app.state, "ingestion_task"):
         try:
             await app.state.ingestion_task
+        except Exception:
+            pass
+    if hasattr(app.state, "chat_poller_task"):
+        try:
+            await app.state.chat_poller_task
         except Exception:
             pass
 
