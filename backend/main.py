@@ -950,6 +950,11 @@ async def health_check(request: Request):
 
 @app.get("/api/health")
 async def api_health(request: Request):
+    """
+    Health check endpoint.
+    Status "ok" requires only the database to be working (critical).
+    OBS and GROQ are optional features - their absence doesn't degrade overall status.
+    """
     checks = {
         "database": False,
         "obs": False,
@@ -973,7 +978,9 @@ async def api_health(request: Request):
     except Exception:
         checks["obs"] = False
 
-    overall = all(checks.values())
+    # Only database is critical for "ok" status
+    # OBS and GROQ are optional features
+    overall = checks["database"]
     return {"status": "ok" if overall else "degraded", "checks": checks}
 
 
