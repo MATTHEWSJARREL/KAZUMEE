@@ -96,6 +96,26 @@ def insert_chat_spike(db, streamer_id: int, num_messages: int = 30, spike_name: 
     return num_messages
 
 
+def cleanup_test_data(db, streamer_id: int, spike_name: str = None):
+	"""Delete test data created by this test (stream_events and clips)."""
+	try:
+		# Delete stream_events with this spike_name
+		if spike_name:
+			deleted_events = db.query(StreamEvent).filter(
+				StreamEvent.streamer_id == streamer_id,
+				StreamEvent.payload.contains(f'"spike": "{spike_name}"')
+			).delete()
+			logger.info(f"✅ Cleaned up {deleted_events} stream_events for spike {spike_name}")
+
+		# Delete all clips for this test streamer
+		deleted_clips = db.query(Clip).filter(Clip.streamer_id == streamer_id).delete()
+		logger.info(f"✅ Cleaned up {deleted_clips} clips for streamer {streamer_id}")
+		db.commit()
+	except Exception as e:
+		logger.warning(f"⚠️  Cleanup error: {e}")
+		db.rollback()
+
+
 def wait_for_detector_and_clips(db, streamer_id: int, timeout: int = 20, initial_delay: int = 3):
     """
     Wait for:
@@ -187,6 +207,11 @@ def main(streamer_id: int = None):
             logger.warning("   3. Agent not connected (check [MOMENT→AGENT] logs)")
             logger.warning("   4. Clip creation failed (check backend for errors)")
         logger.info("=" * 70)
+
+        # Step 5: Clean up test data
+        logger.info("\n[Step 5] Cleanup test data")
+        cleanup_test_data(db, streamer_id, spike_name=spike_name)
+        logger.info("✅ Test data cleaned up\n")
 
         return 0 if clip_created else 1
 

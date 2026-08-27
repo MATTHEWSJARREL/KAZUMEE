@@ -11,6 +11,10 @@ from pathlib import Path
 from backend.core.auth import get_current_user, get_streamer_id_for_user
 from backend.core.logger import get_event_log, EventType
 from backend.core.clip_storage import get_clip_storage
+from backend.database.session import SessionLocal
+from backend.database.models.stream_event import StreamEvent
+from backend.database.models.streamer import Streamer
+from backend.database.models.clip import Clip
 
 router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
 
@@ -149,3 +153,65 @@ async def get_log_files(current_user = Depends(get_current_user)):
     return {
         "log_files": sorted(files, key=lambda x: x["modified"], reverse=True)
     }
+
+
+@router.delete("/cleanup-test-data/{streamer_username}")
+async def cleanup_test_data(
+    streamer_username: str,
+    current_user = Depends(get_current_user)
+):
+    """
+    DANGEROUS: Delete all stream_events and clips for a test streamer.
+    Only allows cleanup of streamers with platform='test' to prevent accidents.
+    Requires authentication.
+
+    Example: DELETE /api/monitoring/cleanup-test-data/test_chat_to_detector
+    """
+    db = SessionLocal()
+    try:
+        # Find streamer
+        streamer = db.query(Streamer).filter(
+            Streamer.username == streamer_username
+        ).first()
+
+        if not streamer:
+            raise HTTPException(status_code=404, detail="Streamer not found")
+
+        # Only allow deletion of test streamers (safety check)
+        if streamer.platform != "test":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cleanup only allowed for test streamers. '{streamer_username}' platform={streamer.platform}"
+            )
+
+        # Delete all stream_events
+        deleted_events = db.query(StreamEvent).filter(
+            StreamEvent.streamer_id == streamer.id
+        ).delete()
+
+        # Delete all clips
+        deleted_clips = db.query(Clip).filter(
+            Clip.streamer_id == streamer.id
+        ).delete()
+
+        # Delete the streamer
+        db.delete(streamer)
+        db.commit()
+
+        return {
+            "success": True,
+            "message": f"Deleted test streamer '{streamer_username}'",
+            "deleted": {
+                "streamer_id": streamer.id,
+                "stream_events": deleted_events,
+                "clips": deleted_clips
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+    finally:
+        db.close()

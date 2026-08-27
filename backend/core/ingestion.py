@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import httpx
 import logging
+from sqlalchemy import func
 
 from backend.database.session import SessionLocal
 from backend.database.models.platform_connection import PlatformConnection
@@ -17,6 +18,38 @@ CHAT_POLLER_INTERVAL = int(os.getenv("CHAT_POLLER_INTERVAL", "2"))  # Poll strea
 
 # Track last-processed stream_event ID per streamer (in-memory, survives process restart via DB scan)
 _chat_poller_last_id: dict[int, int] = {}
+_chat_poller_initialized = False
+
+
+async def _initialize_chat_poller_markers() -> None:
+	"""
+	Initialize last-processed markers to skip pre-existing backlog on startup.
+	Sets each streamer's marker to the current MAX stream_events id, so only
+	NEW messages (arriving after startup) trigger the detector.
+	"""
+	global _chat_poller_last_id, _chat_poller_initialized
+	if _chat_poller_initialized:
+		return
+
+	db = SessionLocal()
+	try:
+		# Get MAX id per streamer (only for chat_message events)
+		max_ids = db.query(
+			StreamEvent.streamer_id,
+			func.max(StreamEvent.id).label('max_id')
+		).filter(
+			StreamEvent.event_type == "chat_message"
+		).group_by(StreamEvent.streamer_id).all()
+
+		for streamer_id, max_id in max_ids:
+			if max_id:
+				_chat_poller_last_id[streamer_id] = max_id
+				logger.info(f"[CHAT→POLLER] Initialized streamer {streamer_id}: skipping to id {max_id}")
+
+		_chat_poller_initialized = True
+		logger.info(f"[CHAT→POLLER] Cold-start backlog skip enabled ({len(_chat_poller_last_id)} streamers)")
+	finally:
+		db.close()
 
 
 async def poll_youtube_once(conn: PlatformConnection) -> None:
@@ -120,8 +153,12 @@ async def poll_chat_events(stop_event: asyncio.Event) -> None:
     Background task: Poll stream_events for new chat_message rows and feed to detector.
     Runs every CHAT_POLLER_INTERVAL seconds.
     Tracks last-processed ID per streamer to avoid double-processing.
+    On first run, initializes markers to current MAX id per streamer to skip backlog.
     """
     global _chat_poller_last_id
+
+    # Initialize backlog markers on first run (skip pre-existing rows)
+    await _initialize_chat_poller_markers()
 
     while not stop_event.is_set():
         try:
