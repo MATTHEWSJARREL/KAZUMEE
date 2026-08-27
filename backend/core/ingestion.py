@@ -184,12 +184,25 @@ async def poll_chat_events(stop_event: asyncio.Event) -> None:
                 detector = get_detector()
 
                 for streamer_id, events in events_by_streamer.items():
-                    last_processed_id = _chat_poller_last_id.get(streamer_id, 0)
+                    # Get marker for this streamer
+                    last_processed_id = _chat_poller_last_id.get(streamer_id)
+
+                    # If streamer not yet initialized (appeared after startup),
+                    # initialize to current max_id to skip their backlog
+                    if last_processed_id is None:
+                        current_max_id = max([e.id for e in events]) if events else 0
+                        _chat_poller_last_id[streamer_id] = current_max_id - 1 if current_max_id > 0 else 0
+                        last_processed_id = _chat_poller_last_id[streamer_id]
+                        logger.info(f"[CHAT→POLLER] Initialized new streamer {streamer_id}: setting marker to {last_processed_id}")
+
+                    # Find events newer than marker
                     new_events = [e for e in events if e.id > last_processed_id]
 
                     if not new_events:
+                        logger.debug(f"[CHAT→POLLER] Streamer {streamer_id}: last_id={last_processed_id}, no new rows")
                         continue
 
+                    # Feed to detector and advance marker
                     messages_fed = 0
                     for event in new_events:
                         # Feed to detector
@@ -201,6 +214,8 @@ async def poll_chat_events(stop_event: asyncio.Event) -> None:
                         messages_fed += 1
                         _chat_poller_last_id[streamer_id] = event.id
 
+                    # Debug log with marker position and new rows found
+                    logger.info(f"[CHAT→POLLER] Streamer {streamer_id}: last_id={last_processed_id}, found {messages_fed} new rows (marker now={_chat_poller_last_id[streamer_id]})")
                     logger.info(f"[CHAT→DETECTOR] Streamer {streamer_id}: fed {messages_fed} messages")
 
             finally:
