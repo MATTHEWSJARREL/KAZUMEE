@@ -170,7 +170,10 @@ export default function ClipsPage() {
                 // Fetch thumbnail as blob (requires auth)
                 if (clip.urls?.thumbnail) {
                   try {
-                    const thumbRes = await apiFetch(clip.urls.thumbnail.replace(window.location.origin, ''));
+                    // Extract path from URL (e.g., "/api/clips/thumbnail/123")
+                    const url = new URL(clip.urls.thumbnail);
+                    const thumbnailPath = url.pathname + url.search;
+                    const thumbRes = await apiFetch(thumbnailPath);
                     if (thumbRes.ok) {
                       const blob = await thumbRes.blob();
                       thumbnailUrl = window.URL.createObjectURL(blob);
