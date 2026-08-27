@@ -162,17 +162,42 @@ export default function ClipsPage() {
           const allData = await allRes.json();
           console.log('✅ All clips:', allData.clips?.length || 0);
           if (allData.clips && Array.isArray(allData.clips)) {
-            clipsToShow.push(...allData.clips.map(clip => ({
-              id: clip.id,
-              title: clip.title || 'Clip',
-              description: clip.description || 'Auto-generated clip',
-              created_at: clip.created_at,
-              duration_seconds: clip.duration_seconds,
-              views: Math.floor(Math.random() * 10000),
-              quality_score: clip.quality_score || 0,
-              status: 'published',
-              file_path: clip.file_path
-            })));
+            // Process clips and fetch thumbnails as blobs
+            const clipsWithThumbnails = await Promise.all(
+              allData.clips.map(async (clip) => {
+                let thumbnailUrl = null;
+
+                // Fetch thumbnail as blob (requires auth)
+                if (clip.urls?.thumbnail) {
+                  try {
+                    const thumbRes = await apiFetch(clip.urls.thumbnail.replace(window.location.origin, ''));
+                    if (thumbRes.ok) {
+                      const blob = await thumbRes.blob();
+                      thumbnailUrl = window.URL.createObjectURL(blob);
+                    }
+                  } catch (err) {
+                    console.warn(`Failed to load thumbnail for clip ${clip.id}:`, err);
+                  }
+                }
+
+                return {
+                  id: clip.id,
+                  title: clip.title || 'Clip',
+                  description: clip.description || 'Auto-generated clip',
+                  created_at: clip.created_at,
+                  duration_seconds: clip.duration_seconds,
+                  quality_score: clip.quality_score,
+                  status: clip.status || 'pending',
+                  file_path: clip.file_path,
+                  urls: {
+                    thumbnail: thumbnailUrl,
+                    stream: clip.urls?.stream,
+                    download: clip.urls?.download
+                  }
+                };
+              })
+            );
+            clipsToShow.push(...clipsWithThumbnails);
           }
         } else {
           console.error('Clips fetch failed:', allRes.status);
@@ -514,15 +539,11 @@ export default function ClipsPage() {
                   <p>{clip.description}</p>
 
                   <div className={styles.clipStats}>
-                    {clip.views > 0 && (
+                    {clip.quality_score && clip.quality_score > 0 && (
                       <span className={styles.stat}>
-                        <Eye size={14} />
-                        {clip.views.toLocaleString()} views
+                        Quality: {(clip.quality_score * 100).toFixed(0)}%
                       </span>
                     )}
-                    <span className={styles.stat}>
-                      Quality: {(clip.quality_score * 100).toFixed(0)}%
-                    </span>
                   </div>
 
                   <div className={styles.timestamp}>
