@@ -99,11 +99,12 @@ def insert_chat_spike(db, streamer_id: int, num_messages: int = 30, spike_name: 
 def cleanup_test_data(db, streamer_id: int, spike_name: str = None):
 	"""Delete test data created by this test (stream_events and clips)."""
 	try:
-		# Delete stream_events with this spike_name
+		# Delete stream_events by event_id pattern (event_id = "test_{spike_name}_{i}_{timestamp}")
 		if spike_name:
+			# Match event_ids starting with "test_{spike_name}_"
 			deleted_events = db.query(StreamEvent).filter(
 				StreamEvent.streamer_id == streamer_id,
-				StreamEvent.payload.contains(f'"spike": "{spike_name}"')
+				StreamEvent.event_id.like(f"test_{spike_name}_%")
 			).delete()
 			logger.info(f"✅ Cleaned up {deleted_events} stream_events for spike {spike_name}")
 
