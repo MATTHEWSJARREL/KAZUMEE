@@ -20,6 +20,22 @@ export default function Dashboard() {
   const [clipping, setClipping] = useState(false);
   const [agentStatus, setAgentStatus] = useState(null);
 
+  // Check actual agent registry status (source of truth)
+  const checkAgentRegistry = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/agent/registry-status');
+      if (res.ok) {
+        const data = await res.json();
+        const streamerIdNum = parseInt(localStorage.getItem('streamerId') || '0', 10);
+        const isConnected = data.connected_streamer_ids?.includes(streamerIdNum);
+        setAgentStatus(isConnected ? 'online' : 'offline');
+        console.log(`[AGENT] Registry check: streamer=${streamerIdNum}, connected=${isConnected}`);
+      }
+    } catch (err) {
+      console.warn('[AGENT] Registry check failed:', err);
+    }
+  }, []);
+
   // REAL FEATURE: Manually trigger clip capture
   const handleClipNow = async () => {
     setClipping(true);
@@ -65,7 +81,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     setWsConnected(isConnected);
-  }, [isConnected]);
+    // Check agent registry whenever WebSocket connection status changes
+    checkAgentRegistry();
+  }, [isConnected, checkAgentRegistry]);
 
   // Fetch clips and status (used both on init and when moments detected)
   const fetchClipsAndStatus = useCallback(async () => {
@@ -150,7 +168,13 @@ export default function Dashboard() {
 
     // Initial fetch
     fetchClipsAndStatus().finally(() => setLoading(false));
-  }, [fetchClipsAndStatus, navigate]);
+
+    // Check agent registry initially and on interval (every 3s)
+    checkAgentRegistry();
+    const agentStatusInterval = setInterval(checkAgentRegistry, 3000);
+
+    return () => clearInterval(agentStatusInterval);
+  }, [fetchClipsAndStatus, navigate, checkAgentRegistry]);
 
   if (!isAuthenticated || loading) {
     return <div className={styles.loadingContainer}>Loading...</div>;
@@ -247,9 +271,13 @@ export default function Dashboard() {
                 <h1>Dashboard</h1>
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {agentStatus === 'offline' && (
-                  <span style={{ fontSize: '13px', color: '#f59e0b', fontWeight: '500' }}>
-                    ⚠️ Agent offline
+                {agentStatus && (
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: agentStatus === 'online' ? '#10b981' : '#f59e0b'
+                  }}>
+                    {agentStatus === 'online' ? '✓ Agent Online' : '⚠️ Agent Offline'}
                   </span>
                 )}
                 <button
