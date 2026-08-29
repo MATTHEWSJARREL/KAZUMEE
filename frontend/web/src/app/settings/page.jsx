@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings as SettingsIcon, LogOut, Bell, Search, Save, Eye, Lock, Volume2, Zap } from 'lucide-react';
+import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './settings.module.css';
 
@@ -16,7 +17,7 @@ export default function SettingsPage() {
 
   // Agent state
   const [agentToken, setAgentToken] = useState('');
-  const [agentStatus, setAgentStatus] = useState('offline');
+  const { agentStatus } = useAgentStatus();
   const [agentMetadata, setAgentMetadata] = useState(null);
   const [loadingAgent, setLoadingAgent] = useState(false);
   const [generatingToken, setGeneratingToken] = useState(false);
@@ -78,12 +79,8 @@ export default function SettingsPage() {
       email: email
     }));
 
-    // Fetch agent token metadata and status
+    // Fetch agent token metadata
     fetchAgentMetadata();
-    fetchAgentStatus();
-    // Poll status every 5 seconds
-    const statusInterval = setInterval(fetchAgentStatus, 5000);
-    return () => clearInterval(statusInterval);
   }, [navigate]);
 
   const fetchAgentMetadata = async () => {
@@ -95,18 +92,6 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch agent metadata:', error);
-    }
-  };
-
-  const fetchAgentStatus = async () => {
-    try {
-      const response = await apiFetch('/api/agent/status');
-      if (response.ok) {
-        const data = await response.json();
-        setAgentStatus(data.online ? 'connected' : 'offline');
-      }
-    } catch (error) {
-      console.error('Failed to fetch agent status:', error);
     }
   };
 
@@ -457,8 +442,8 @@ export default function SettingsPage() {
 
                 {/* Agent Status */}
                 <div style={{
-                  background: agentStatus === 'connected' ? '#0f3460' : '#3a1a1a',
-                  border: `1px solid ${agentStatus === 'connected' ? '#16213e' : '#5a2a2a'}`,
+                  background: agentStatus === 'online' ? '#0f3460' : '#3a1a1a',
+                  border: `1px solid ${agentStatus === 'online' ? '#16213e' : '#5a2a2a'}`,
                   borderRadius: '8px',
                   padding: '15px',
                   marginBottom: '20px',
@@ -470,17 +455,17 @@ export default function SettingsPage() {
                     width: '12px',
                     height: '12px',
                     borderRadius: '50%',
-                    background: agentStatus === 'connected' ? '#4CAF50' : '#ff6b6b',
-                    animation: agentStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+                    background: agentStatus === 'online' ? '#4CAF50' : '#ff6b6b',
+                    animation: agentStatus === 'online' ? 'pulse 2s infinite' : 'none'
                   }} />
                   <div>
                     <h4 style={{ margin: '0 0 5px 0' }}>
-                      Agent: <span style={{ color: agentStatus === 'connected' ? '#4CAF50' : '#ff6b6b' }}>
-                        {agentStatus === 'connected' ? 'Connected' : 'Offline'}
+                      Agent: <span style={{ color: agentStatus === 'online' ? '#4CAF50' : '#ff6b6b' }}>
+                        {agentStatus === 'online' ? 'Online' : 'Offline'}
                       </span>
                     </h4>
                     <p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>
-                      {agentStatus === 'connected'
+                      {agentStatus === 'online'
                         ? 'Your agent is running and ready to capture clips'
                         : 'Run KazumeeAgent.exe to start capturing'}
                     </p>

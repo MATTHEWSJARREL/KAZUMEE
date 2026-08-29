@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Video, TrendingUp, Settings, LogOut, Bell, Search, MoreVertical } from 'lucide-react';
 import { useMomentWebSocket } from '@/hooks/useMomentWebSocket';
+import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { apiFetch, getAuthToken } from '@/lib/apiClient';
 import styles from './dashboard.module.css';
 
@@ -18,43 +19,7 @@ export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
   const [clipping, setClipping] = useState(false);
-  const [agentStatus, setAgentStatus] = useState(null);
-
-  // Check actual agent registry status (source of truth)
-  const checkAgentRegistry = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/agent/registry-status');
-      if (res.ok) {
-        const data = await res.json();
-        const streamerIdStr = localStorage.getItem('streamerId');
-        const streamerIdNum = streamerIdStr ? parseInt(streamerIdStr, 10) : null;
-
-        if (streamerIdNum === null) {
-          console.warn('[AGENT] No streamer ID in localStorage. Login may not have stored it.');
-          setAgentStatus('offline');
-          return;
-        }
-
-        const connectedIds = data.connected_streamer_ids || [];
-        const isConnected = connectedIds.includes(streamerIdNum);
-
-        setAgentStatus(isConnected ? 'online' : 'offline');
-        console.log('[AGENT] Registry check:', {
-          streamerIdFromStorage: streamerIdStr,
-          streamerIdParsed: streamerIdNum,
-          connectedIds: connectedIds,
-          isConnected: isConnected,
-          status: isConnected ? 'ONLINE' : 'OFFLINE'
-        });
-      } else {
-        console.warn('[AGENT] Registry check returned non-ok status:', res.status);
-        setAgentStatus('offline');
-      }
-    } catch (err) {
-      console.error('[AGENT] Registry check failed:', err);
-      setAgentStatus('offline');
-    }
-  }, []);
+  const { agentStatus } = useAgentStatus();
 
   // REAL FEATURE: Manually trigger clip capture
   const handleClipNow = async () => {
@@ -101,9 +66,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setWsConnected(isConnected);
-    // Check agent registry whenever WebSocket connection status changes
-    checkAgentRegistry();
-  }, [isConnected, checkAgentRegistry]);
+  }, [isConnected]);
 
   // Fetch clips and status (used both on init and when moments detected)
   const fetchClipsAndStatus = useCallback(async () => {
@@ -188,13 +151,7 @@ export default function Dashboard() {
 
     // Initial fetch
     fetchClipsAndStatus().finally(() => setLoading(false));
-
-    // Check agent registry initially and on interval (every 3s)
-    checkAgentRegistry();
-    const agentStatusInterval = setInterval(checkAgentRegistry, 3000);
-
-    return () => clearInterval(agentStatusInterval);
-  }, [fetchClipsAndStatus, navigate, checkAgentRegistry]);
+  }, [fetchClipsAndStatus, navigate]);
 
   if (!isAuthenticated || loading) {
     return <div className={styles.loadingContainer}>Loading...</div>;
