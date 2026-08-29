@@ -26,13 +26,33 @@ export default function Dashboard() {
       const res = await apiFetch('/api/agent/registry-status');
       if (res.ok) {
         const data = await res.json();
-        const streamerIdNum = parseInt(localStorage.getItem('streamerId') || '0', 10);
-        const isConnected = data.connected_streamer_ids?.includes(streamerIdNum);
+        const streamerIdStr = localStorage.getItem('streamerId');
+        const streamerIdNum = streamerIdStr ? parseInt(streamerIdStr, 10) : null;
+
+        if (streamerIdNum === null) {
+          console.warn('[AGENT] No streamer ID in localStorage. Login may not have stored it.');
+          setAgentStatus('offline');
+          return;
+        }
+
+        const connectedIds = data.connected_streamer_ids || [];
+        const isConnected = connectedIds.includes(streamerIdNum);
+
         setAgentStatus(isConnected ? 'online' : 'offline');
-        console.log(`[AGENT] Registry check: streamer=${streamerIdNum}, connected=${isConnected}`);
+        console.log('[AGENT] Registry check:', {
+          streamerIdFromStorage: streamerIdStr,
+          streamerIdParsed: streamerIdNum,
+          connectedIds: connectedIds,
+          isConnected: isConnected,
+          status: isConnected ? 'ONLINE' : 'OFFLINE'
+        });
+      } else {
+        console.warn('[AGENT] Registry check returned non-ok status:', res.status);
+        setAgentStatus('offline');
       }
     } catch (err) {
-      console.warn('[AGENT] Registry check failed:', err);
+      console.error('[AGENT] Registry check failed:', err);
+      setAgentStatus('offline');
     }
   }, []);
 

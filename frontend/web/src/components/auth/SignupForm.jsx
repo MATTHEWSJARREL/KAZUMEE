@@ -69,12 +69,16 @@ export default function SignupForm({ onSuccess, onToggle }) {
       const data = await response.json();
       const token = data.token;
       const user = data.user;
+      const streamerId = data.streamer_id;
 
       // Store real auth token using apiClient helper (sets correct storage key + clears caches)
       setAuthToken(token, true);
       localStorage.setItem('userRole', user.role);
       localStorage.setItem('streamerEmail', user.email);
       localStorage.setItem('streamerName', formData.streamerName);
+      if (streamerId) {
+        localStorage.setItem('streamerId', streamerId.toString());
+      }
 
       console.log('✓ Real signup successful:', {
         token: token.substring(0, 20) + '...',
