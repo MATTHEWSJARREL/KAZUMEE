@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
+import json
 import logging
 import os
 import platform
+import secrets
 
 from obsws_python import ReqClient
 
@@ -29,11 +31,105 @@ class OBSAdapter:
         self._last_connect_error = None
         self._last_stream_bytes = None
         self._last_stream_sample_at = None
+        self._replay_buffer_auto_started = False
+
+        # Attempt to pre-create OBS WebSocket config on first run
+        self._ensure_obs_websocket_enabled()
 
         self._connect(initial=True)
 
     def _now_utc(self):
         return datetime.now(timezone.utc)
+
+    def _ensure_obs_websocket_enabled(self):
+        """
+        Pre-create OBS WebSocket config to enable it before OBS launches.
+        This removes the friction of manually enabling WebSocket in OBS settings.
+        """
+        try:
+            # Construct path to OBS WebSocket config
+            if platform.system() == "Windows":
+                appdata = os.getenv("APPDATA")
+                if not appdata:
+                    self.logger.warning("[SETUP] APPDATA not set, skipping WebSocket config pre-creation")
+                    return
+
+                obs_websocket_dir = os.path.join(appdata, "obs-studio", "plugin_config", "obs-websocket")
+                config_path = os.path.join(obs_websocket_dir, "config.json")
+            else:
+                # Linux/Mac support (simplified)
+                home = os.path.expanduser("~")
+                obs_websocket_dir = os.path.join(home, ".config", "obs-studio", "plugin_config", "obs-websocket")
+                config_path = os.path.join(obs_websocket_dir, "config.json")
+
+            # Check if OBS plugin directory exists
+            if not os.path.exists(obs_websocket_dir):
+                self.logger.info("[SETUP] OBS WebSocket plugin directory not found. OBS may not be installed or not launched yet.")
+                self.logger.info(f"[SETUP] Once OBS launches, we'll enable WebSocket in: {obs_websocket_dir}")
+                return
+
+            # Read existing config or create new one
+            existing_config = {}
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, 'r') as f:
+                        existing_config = json.load(f)
+                except Exception as e:
+                    self.logger.warning(f"[SETUP] Failed to read existing WebSocket config: {e}")
+                    existing_config = {}
+
+            # Merge with defaults (don't override existing values)
+            websocket_config = {
+                "alerts_enabled": existing_config.get("alerts_enabled", False),
+                "auth_required": existing_config.get("auth_required", True),
+                "first_load": existing_config.get("first_load", False),
+                "server_enabled": True,  # ← ENABLE if not already
+                "server_password": existing_config.get("server_password", config.obs_password or "kazumi123"),
+                "server_port": existing_config.get("server_port", config.obs_port or 4455),
+            }
+
+            # Write config file
+            os.makedirs(obs_websocket_dir, exist_ok=True)
+            with open(config_path, 'w') as f:
+                json.dump(websocket_config, f, indent=2)
+
+            if existing_config.get("server_enabled"):
+                self.logger.info("[SETUP] WebSocket server already enabled in OBS config")
+            else:
+                self.logger.info(f"[SETUP] ✓ Pre-created OBS WebSocket config: {config_path}")
+                self.logger.info(f"[SETUP]   - Server enabled: true")
+                self.logger.info(f"[SETUP]   - Port: {websocket_config['server_port']}")
+                self.logger.info(f"[SETUP]   - Password: {websocket_config['server_password']}")
+                self.logger.info("[SETUP]   Note: Changes apply when OBS restarts")
+
+        except Exception as e:
+            self.logger.warning(f"[SETUP] Failed to pre-create WebSocket config: {e}")
+
+    async def _auto_start_replay_buffer(self):
+        """
+        Auto-start the OBS Replay Buffer on successful connection.
+        This removes the friction of manually enabling/starting it.
+        """
+        if not self.connected or not self.client or self._replay_buffer_auto_started:
+            return
+
+        try:
+            # Check if replay buffer is already running
+            status = await self.get_replay_buffer_status()
+            if status.get("active"):
+                self.logger.info("[SETUP] Replay Buffer already running")
+                self._replay_buffer_auto_started = True
+                return
+
+            # Start the replay buffer
+            result = await self.start_replay_buffer()
+            if result.get("status") == "ok":
+                self.logger.info("[SETUP] ✓ Replay Buffer auto-started successfully")
+                self._replay_buffer_auto_started = True
+            else:
+                self.logger.warning(f"[SETUP] Failed to auto-start Replay Buffer: {result.get('reason')}")
+        except Exception as e:
+            self.logger.warning(f"[SETUP] Error auto-starting Replay Buffer: {e}")
 
     def _mark_retry_backoff(self):
         self._next_reconnect_at = self._now_utc() + timedelta(seconds=self.reconnect_cooldown_sec)
@@ -130,6 +226,19 @@ class OBSAdapter:
             self.connected = True
             self._last_connect_error = None
             self.logger.info(f"Connected to OBS at {config.obs_host}:{config.obs_port}")
+
+            # Auto-start Replay Buffer if not already running
+            # (Fire and forget — don't block connection on this)
+            try:
+                import asyncio
+                if not asyncio.iscoroutinefunction(self._auto_start_replay_buffer):
+                    # Call async method synchronously if needed
+                    loop = asyncio.new_event_loop()
+                    loop.run_until_complete(self._auto_start_replay_buffer())
+                    loop.close()
+            except Exception as e:
+                self.logger.debug(f"Auto-start replay buffer error (non-critical): {e}")
+
             return True
         except Exception as e:
             self.connected = False
